@@ -148,10 +148,27 @@ const server = createServer((req, res) => {
   serveStatic(res, url.pathname);
 });
 
+// Abre a URL no navegador padrao em qualquer sistema (Mac, Linux, Windows).
+// Falha em silencio quando nao ha navegador (ex.: servidor headless):
+// o endereco ja foi impresso, entao o painel continua acessivel a mao.
+function openInBrowser(address: string): void {
+  const [command, args]: [string, string[]] =
+    process.platform === "darwin"
+      ? ["open", [address]]
+      : process.platform === "win32"
+        ? ["cmd", ["/c", "start", "", address]]
+        : ["xdg-open", [address]];
+  try {
+    spawn(command, args, { stdio: "ignore", detached: true }).unref();
+  } catch {
+    // sem navegador disponivel - segue em frente
+  }
+}
+
 server.listen(PORT, HOST, () => {
   const address = `http://${HOST}:${PORT}`;
   console.log(`Painel do multimodels-mcp aberto em ${address}`);
-  if (process.platform === "darwin" && process.env.MULTIMODELS_NO_OPEN !== "1") {
-    spawn("open", [address], { stdio: "ignore", detached: true }).unref();
+  if (process.env.MULTIMODELS_NO_OPEN !== "1") {
+    openInBrowser(address);
   }
 });
