@@ -1,0 +1,3 @@
+Não encontrei `services/estoque.js` nem a função `sincronizarEstoque` neste projeto — ele é um servidor TypeScript e não contém código de estoque.
+
+Também não alterei arquivos, pois o ambiente está em modo somente leitura. Para eu corrigir com segurança e enviar a função completa, cole aqui o conteúdo atual de `sincronizarEstoque` (ou abra o projeto/pasta correta). Assim consigo reproduzir a duplicação, criar o teste e devolver a versão corrigida.

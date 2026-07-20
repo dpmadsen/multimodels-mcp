@@ -1,0 +1,13 @@
+Escreva em JavaScript (Node.js, CommonJS) uma função `parseValor(texto)` que converte valores em dinheiro no formato brasileiro para centavos (inteiro).
+
+Regras:
+- Recebe uma string; retorna o valor em centavos (inteiro) ou null se a entrada for inválida.
+- Prefixo "R$" é opcional, com ou sem espaço depois dele. Espaços nas pontas da string devem ser ignorados.
+- Parte inteira: dígitos, com pontos de milhar opcionais. Se houver pontos, o agrupamento precisa estar correto (primeiro grupo com 1 a 3 dígitos, os demais com exatamente 3). Ex.: "1.234" é válido (= R$ 1.234,00); "1.23" é inválido.
+- Parte decimal opcional: vírgula seguida de 1 ou 2 dígitos. "12,5" significa 12 reais e 50 centavos (= 1250).
+- Formato americano é inválido ("1,234.56" → null). Mais de 2 casas decimais é inválido ("12,345" → null).
+- Valores negativos são inválidos. Entrada vazia, null, undefined ou não-string → null. A função nunca deve lançar erro.
+- Exemplos: "R$ 1.234,56" → 123456; "12,5" → 1250; "R$ 12" → 1200; "0" → 0.
+- Termine com: module.exports = { parseValor };
+
+Responda com UM ÚNICO bloco de código ```javascript, sem explicações.

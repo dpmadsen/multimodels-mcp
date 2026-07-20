@@ -1,0 +1,3 @@
+Não consegui corrigir porque o arquivo `services/estoque.js` não existe neste workspace nem no diretório do usuário. O projeto aberto é `multimodels-mcp`, em TypeScript, sem a função `sincronizarEstoque`.
+
+Envie o caminho correto ou cole/anexe o arquivo `estoque.js`. Aí eu corrijo o bug e devolvo a função completa, com teste de regressão.

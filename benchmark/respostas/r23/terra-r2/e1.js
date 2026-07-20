@@ -1,0 +1,22 @@
+function parseValor(texto) {
+  if (typeof texto !== "string") return null;
+
+  let valor = texto.trim();
+
+  if (valor.startsWith("R$")) {
+    valor = valor.slice(2).trimStart();
+  }
+
+  const match = valor.match(/^(\d+|\d{1,3}(?:\.\d{3})+)(?:,(\d{1,2}))?$/);
+
+  if (!match) return null;
+
+  const reais = Number(match[1].replace(/\./g, ""));
+  const centavos = Number((match[2] || "").padEnd(2, "0"));
+
+  const resultado = reais * 100 + centavos;
+
+  return Number.isSafeInteger(resultado) ? resultado : null;
+}
+
+module.exports = { parseValor };

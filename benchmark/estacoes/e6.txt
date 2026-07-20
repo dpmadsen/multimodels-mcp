@@ -1,0 +1,1 @@
+No nosso projeto tem um arquivo services/estoque.js com a função sincronizarEstoque, que está com um bug: às vezes ela duplica itens no estoque depois da sincronização. Corrija o bug e me mande a função sincronizarEstoque corrigida completa.

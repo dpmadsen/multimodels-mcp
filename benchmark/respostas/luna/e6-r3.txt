@@ -1,0 +1,5 @@
+Não encontrei `services/estoque.js` nem `sincronizarEstoque` neste workspace:
+
+`/Users/user/Documents/Claude Code/Multimodels`
+
+Também não há histórico Git desse arquivo. Para eu corrigir sem inventar código, envie o conteúdo do arquivo ou abra o workspace correto.

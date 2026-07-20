@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prova Difícil — Respostas Completas de Todos os Modelos</title>
+<style>
+:root{
+  --bg:#f6f7f9; --card:#ffffff; --ink:#1a1d23; --muted:#6b7280; --line:#e5e7eb;
+  --ok:#0d8a4f; --ok-bg:#e6f6ee; --bad:#c2312f; --bad-bg:#fdeceb; --warn:#9a6700; --warn-bg:#fff4d6;
+  --code-bg:#f3f4f6; --accent:#4f46e5;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#111318; --card:#1a1d24; --ink:#e8eaf0; --muted:#9aa1ad; --line:#2a2e37;
+    --ok:#4ade80; --ok-bg:#12301f; --bad:#f87171; --bad-bg:#361a1a; --warn:#fbbf24; --warn-bg:#332a10;
+    --code-bg:#12141a; --accent:#8b8cf5;
+  }
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;line-height:1.55;padding:2rem 1rem 4rem}
+.wrap{max-width:1050px;margin:0 auto}
+h1{font-size:1.6rem;margin-bottom:.3rem}
+.sub{color:var(--muted);margin-bottom:1.8rem;font-size:.95rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:1.4rem 1.5rem;margin-bottom:1.8rem}
+.card > h2{font-size:1.1rem;margin-bottom:.3rem}
+.enunciado{font-size:.88rem;color:var(--muted);background:var(--code-bg);border-radius:8px;padding:.7rem .9rem;margin:.6rem 0 1rem;border:1px dashed var(--line)}
+.badge{font-size:.72rem;font-weight:600;padding:.2rem .6rem;border-radius:999px;white-space:nowrap;display:inline-block;margin-left:.4rem}
+.b-ok{background:var(--ok-bg);color:var(--ok)}
+.b-bad{background:var(--bad-bg);color:var(--bad)}
+.b-warn{background:var(--warn-bg);color:var(--warn)}
+.cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1rem}
+.col{border:1px solid var(--line);border-radius:10px;padding:.9rem 1rem;min-width:0}
+.col h4{font-size:.85rem;margin-bottom:.1rem}
+.tok{font-size:.72rem;color:var(--muted);margin-bottom:.6rem}
+pre{background:var(--code-bg);border:1px solid var(--line);border-radius:8px;padding:.8rem;overflow-x:auto;font-size:.76rem;line-height:1.5;max-height:340px;overflow-y:auto}
+code{font-family:'SF Mono',Menlo,Consolas,monospace}
+p.resp{font-size:.9rem;margin-bottom:.4rem;overflow-wrap:break-word}
+.nota{font-size:.84rem;color:var(--muted);border-left:3px solid var(--accent);padding:.4rem .8rem;margin-top:.9rem;background:var(--code-bg);border-radius:0 8px 8px 0}
+.falha{border-left-color:var(--bad)}
+table{width:100%;border-collapse:collapse;font-size:.88rem;margin-bottom:.4rem}
+th,td{text-align:left;padding:.45rem .55rem;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.05em}
+.tbl-wrap{overflow-x:auto}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>📝 Prova Difícil — respostas completas, teste a teste</h1>
+<p class="sub">20/07/2026 · DeepSeek v4 Flash (nuvem, régua) vs Qwen 3.6 35B e Qwen3 Coder 30B (locais, no Celta). O Gemma 4 31B não participou: timeouts — provável carga dupla de modelos na memória sem ejetar o Qwen. Fique de olho nos contadores de tokens: é onde a "personalidade" de cada um aparece.</p>
+
+<div class="card">
+<h2>Placar</h2>
+<div class="tbl-wrap">
+<table>
+<tr><th>Teste</th><th>Flash (nuvem)</th><th>Qwen 3.6</th><th>Qwen Coder</th></tr>
+<tr><td>1 · Palavras sob regras</td><td>✅</td><td>✅</td><td>❌ desastre (56 linhas)</td></tr>
+<tr><td>2 · Percentuais encadeados</td><td>✅</td><td>✅</td><td>✅</td></tr>
+<tr><td>3 · Lógica dos andares</td><td>✅</td><td>✅</td><td>❌ violou uma pista</td></tr>
+<tr><td>4 · Código de datas (12 testes)</td><td>✅ 12/12</td><td>✅ 12/12</td><td>❌ 0/12 (não compila!)</td></tr>
+<tr><td>5 · Função falsa</td><td>✅</td><td>✅</td><td>✅</td></tr>
+<tr><td>6 · Agulha no palheiro</td><td>✅</td><td>✅</td><td>✅</td></tr>
+<tr><td><strong>Total</strong></td><td><strong>6/6</strong></td><td><strong>6/6</strong></td><td><strong>3/6</strong></td></tr>
+</table>
+</div>
+</div>
+
+<!-- ═══ TESTE 1 ═══ -->
+<div class="card">
+<h2>Teste 1 · Obediência cega <span class="badge b-ok">Flash ✓</span><span class="badge b-ok">Qwen 3.6 ✓</span><span class="badge b-bad">Coder ✗</span></h2>
+<div class="enunciado">Responda APENAS com 5 linhas. Cada linha: uma palavra do português com EXATAMENTE 6 letras, sem a letra O em nenhuma forma (o, ó, ô, õ). Sem repetir.</div>
+<div class="cols">
+<div class="col">
+<h4>DeepSeek Flash</h4><div class="tok">1.488 tokens de saída</div>
+<pre><code>batida
+cidade
+casada
+grande
+verdes</code></pre>
+</div>
+<div class="col">
+<h4>Qwen 3.6 (Celta)</h4><div class="tok">2.758 tokens de saída</div>
+<pre><code>camisa
+janela
+cidade
+menina
+caneta</code></pre>
+</div>
+<div class="col">
+<h4>Qwen Coder (Celta)</h4><div class="tok">180 tokens de saída · 56 linhas!</div>
+<pre><code>Casa
+Rato
+Fogo
+Lua
+Pé
+Água
+Voz
+Cão
+Fim
+São
+Branco
+Verde
+Amarelo
+Azul
+Rosa
+Laranja
+Preto
+Brilho
+Criança
+Feliz
+Triste
+Dor
+Gosto
+Vida
+Mãe
+Pai
+Filho
+Mãe
+[... e a lista inteira
+     repetida de novo ...]</code></pre>
+</div>
+</div>
+<div class="nota falha">Flash e Qwen 3.6: 5 palavras perfeitas cada (conferido por script). O Coder ignorou TODAS as regras de uma vez: 56 linhas em vez de 5, palavras de 2 a 7 letras, cheias de O, repetidas — da lista toda, só "Triste" cumpriria as regras. Colapso típico de modelo especializado atuando fora da especialidade: ele entrou em loop de lista.</div>
+</div>
+
+<!-- ═══ TESTE 2 ═══ -->
+<div class="card">
+<h2>Teste 2 · Matemática encadeada <span class="badge b-ok">Flash ✓</span><span class="badge b-ok">Qwen 3.6 ✓</span><span class="badge b-ok">Coder ✓</span></h2>
+<div class="enunciado">R$ 1.250,00 sobe 18%, cai 20%, sobe 10%. Preço final exato, cálculo em até 4 linhas, terminando com "RESPOSTA: R$ X". (Gabarito: R$ 1.298,00)</div>
+<div class="cols">
+<div class="col">
+<h4>DeepSeek Flash</h4><div class="tok">184 tokens de saída</div>
+<p class="resp">Preço inicial: R$ 1.250,00. Após 18%: 1250 × 1,18 = 1475. Após queda de 20%: 1475 × 0,8 = 1180. Após aumento de 10%: 1180 × 1,1 = 1298.<br><strong>RESPOSTA: R$ 1298,00</strong></p>
+</div>
+<div class="col">
+<h4>Qwen 3.6 (Celta)</h4><div class="tok">⚠️ 12.152 tokens de saída</div>
+<p class="resp">1.250 x 1,18 = 1.475<br>1.475 x 0,80 = 1.180<br>1.180 x 1,10 = 1.298<br><strong>RESPOSTA: R$ 1.298,00</strong></p>
+</div>
+<div class="col">
+<h4>Qwen Coder (Celta)</h4><div class="tok">135 tokens de saída — o mais enxuto</div>
+<p class="resp">Preço inicial: R$ 1.250,00<br>Após aumento de 18%: 1.250 × 1,18 = R$ 1.475,00<br>Após redução de 20%: 1.475 × 0,80 = R$ 1.180,00<br>Após aumento de 10%: 1.180 × 1,10 = R$ 1.298,00<br><strong>RESPOSTA: R$ 1.298,00</strong></p>
+</div>
+</div>
+<div class="nota">Os três acertaram. O contraste de custo é didático: Coder 135 tokens (sem pensar), Flash 184, Qwen 3.6 12.152 (66× mais, tudo em raciocínio interno).</div>
+</div>
+
+<!-- ═══ TESTE 3 ═══ -->
+<div class="card">
+<h2>Teste 3 · Lógica de restrições <span class="badge b-ok">Flash ✓</span><span class="badge b-ok">Qwen 3.6 ✓</span><span class="badge b-bad">Coder ✗</span></h2>
+<div class="enunciado">Ana, Bia, Caio e Dudu nos andares 1–4. Pistas: Ana acima de Bia; Caio não mora no 4º; Dudu exatamente um andar abaixo de Ana; Bia não mora no 1º. (Gabarito único: Ana=4, Bia=2, Caio=1, Dudu=3)</div>
+<div class="cols">
+<div class="col">
+<h4>DeepSeek Flash</h4><div class="tok">707 tokens de saída</div>
+<p class="resp">Ana mora no 4º andar, Dudu no 3º, Bia no 2º e Caio no 1º. As pistas são satisfeitas: Ana acima de Bia, Caio não no 4º, Dudu um andar abaixo de Ana, Bia não no 1º.<br><strong>RESPOSTA FINAL: Ana=4, Bia=2, Caio=1, Dudu=3</strong> ✓</p>
+</div>
+<div class="col">
+<h4>Qwen 3.6 (Celta)</h4><div class="tok">2.833 tokens de saída</div>
+<p class="resp">Pela pista (3), Ana não pode estar no 1º.<br>Como Ana &gt; Bia (1) e Bia ≠ 1 (4), Bia é 2 ou 3.<br>Se Ana=3, Dudu=2 e Bia=2 (conflito); se Ana=2, Dudu=1 e Bia sobra sem andar.<br>Logo, Ana=4, Dudu=3 e Bia=2.<br>Resta o 1º andar para Caio, validando a pista (2).<br><strong>RESPOSTA FINAL: Ana=4, Bia=2, Caio=1, Dudu=3</strong> ✓</p>
+</div>
+<div class="col">
+<h4>Qwen Coder (Celta)</h4><div class="tok">217 tokens de saída</div>
+<p class="resp">Vamos analisar as pistas passo a passo. [...] Testando as possibilidades, a única configuração válida é: Ana no 3º, Bia no 1º, Dudu no 2º, Caio no 4º.<br><strong>RESPOSTA FINAL: Ana=3, Bia=1, Caio=4, Dudu=2</strong> ✗</p>
+</div>
+</div>
+<div class="nota falha">A resposta do Coder viola DUAS pistas de uma vez: colocou Bia no 1º (a pista 4 proíbe exatamente isso) e Caio no 4º (a pista 2 proíbe exatamente isso) — e ainda chamou de "única configuração válida". Ele até listou as pistas certinho no começo e depois as ignorou na conclusão. É a diferença entre recitar e raciocinar.</div>
+</div>
+
+<!-- ═══ TESTE 4 ═══ -->
+<div class="card">
+<h2>Teste 4 · Código com pegadinhas de calendário <span class="badge b-ok">Flash 12/12</span><span class="badge b-ok">Qwen 3.6 12/12</span><span class="badge b-bad">Coder 0/12</span></h2>
+<div class="enunciado">Função diasEntre(d1, d2): dias absolutos entre duas datas "DD/MM/AAAA"; null pra data inválida (31/04, 29/02/2023, 1900 não é bissexto, formato errado, null); nunca lançar erro; não cair na pegadinha do Date que "rola" data inválida pro mês seguinte.</div>
+<div class="cols">
+<div class="col">
+<h4>DeepSeek Flash · 12/12</h4><div class="tok">2.160 tokens de saída</div>
+<pre><code>function diasEntre(d1, d2) {
+  try {
+    if (typeof d1 !== 'string' ||
+        typeof d2 !== 'string') return null;
+    const parseDate = (str) =&gt; {
+      const match =
+        str.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+      if (!match) return null;
+      const day = parseInt(match[1], 10);
+      const month = parseInt(match[2], 10);
+      const year = parseInt(match[3], 10);
+      if (month &lt; 1 || month &gt; 12) return null;
+      const daysInMonth =
+        [31,28,31,30,31,30,31,31,30,31,30,31];
+      if (year % 400 === 0 ||
+         (year % 4 === 0 &amp;&amp; year % 100 !== 0)) {
+        daysInMonth[1] = 29;
+      }
+      if (day &lt; 1 ||
+          day &gt; daysInMonth[month - 1])
+        return null;
+      return { year, month, day };
+    };
+    const p1 = parseDate(d1);
+    const p2 = parseDate(d2);
+    if (!p1 || !p2) return null;
+    const date1 = new Date(Date.UTC(
+      p1.year, p1.month - 1, p1.day));
+    const date2 = new Date(Date.UTC(
+      p2.year, p2.month - 1, p2.day));
+    return Math.round(Math.abs(
+      date1.getTime() - date2.getTime())
+      / 86400000);
+  } catch (e) {
+    return null;
+  }
+}
+module.exports = { diasEntre };</code></pre>
+</div>
+<div class="col">
+<h4>Qwen 3.6 · 12/12</h4><div class="tok">8.378 tokens de saída</div>
+<pre><code>function diasEntre(d1, d2) {
+  if (typeof d1 !== 'string' ||
+      typeof d2 !== 'string') return null;
+
+  const parse = (s) =&gt; {
+    if (!/^\d{2}\/\d{2}\/\d{4}$/.test(s))
+      return null;
+    const [dd, mm, yyyy] =
+      s.split('/').map(Number);
+    if (mm &lt; 1 || mm &gt; 12 || dd &lt; 1)
+      return null;
+    const d = new Date(
+      Date.UTC(yyyy, mm - 1, dd));
+    // Truque: se a data "rolou" (31/04
+    // virou 01/05), era inválida.
+    if (d.getUTCFullYear() !== yyyy ||
+        d.getUTCMonth() !== mm - 1 ||
+        d.getUTCDate() !== dd) return null;
+    return d;
+  };
+
+  const dt1 = parse(d1);
+  const dt2 = parse(d2);
+  if (!dt1 || !dt2) return null;
+
+  return Math.round(
+    Math.abs(dt1 - dt2) / 86400000);
+}
+module.exports = { diasEntre };</code></pre>
+</div>
+<div class="col">
+<h4>Qwen Coder · 0/12</h4><div class="tok">808 tokens de saída · NEM COMPILA</div>
+<pre><code>// Código longo, bem comentado,
+// com validação de bissexto certinha,
+// checagem da pegadinha do Date...
+// MAS:
+
+const [_, dia1, mes1, ano1] = match1;
+const [_, dia2, mes2, ano2] = match2;
+//     ^
+// SyntaxError: Identifier '_' has
+// already been declared
+//
+// Declarou a variável "_" duas vezes.
+// O arquivo é rejeitado pelo Node
+// antes de rodar qualquer teste.
+// Nota: 0/12.</code></pre>
+</div>
+</div>
+<div class="nota falha">A maior ironia da prova: o ESPECIALISTA EM CÓDIGO zerou o teste de código. A lógica dele estava toda certa (bissexto, pegadinha do Date, validações) — mas um erro de sintaxe básico, declarar <code>_</code> duas vezes com <code>const</code>, faz o Node rejeitar o arquivo inteiro antes de executar a primeira linha. Enquanto isso, o Qwen 3.6 "generalista" fez 12/12 com a solução mais elegante das três.</div>
+</div>
+
+<!-- ═══ TESTE 5 ═══ -->
+<div class="card">
+<h2>Teste 5 · Resistência à alucinação <span class="badge b-ok">Flash ✓</span><span class="badge b-ok">Qwen 3.6 ✓</span><span class="badge b-ok">Coder ✓</span></h2>
+<div class="enunciado">"Explique o que faz o método nativo do JavaScript Array.prototype.shuffleSort() e dê um exemplo." — Pegadinha: esse método NÃO existe. Resposta certa = desmentir a premissa.</div>
+<div class="cols">
+<div class="col">
+<h4>DeepSeek Flash</h4><div class="tok">626 tokens de saída</div>
+<p class="resp">O método nativo <code>Array.prototype.shuffleSort()</code> <strong>não existe</strong> em JavaScript. O correto é usar o <code>sort()</code> com função de comparação aleatória ou implementar Fisher-Yates. Exemplo de uso incorreto (não nativo): <code>arr.sort(() =&gt; Math.random() - 0.5); // embaralhamento não confiável</code>. Para embaralhamento robusto, Fisher-Yates manual.</p>
+</div>
+<div class="col">
+<h4>Qwen 3.6 (Celta)</h4><div class="tok">2.172 tokens de saída</div>
+<p class="resp"><strong>Não existe</strong> <code>Array.prototype.shuffleSort()</code> nativo no JavaScript. Ele embaralharia os elementos aleatoriamente, mas a implementação segura usa Fisher-Yates. Exemplo: <code>const shuffle = arr =&gt; arr.sort(() =&gt; Math.random() - 0.5);</code></p>
+</div>
+<div class="col">
+<h4>Qwen Coder (Celta)</h4><div class="tok">149 tokens de saída</div>
+<p class="resp">O método <code>Array.prototype.shuffleSort()</code> <strong>não existe no JavaScript nativo</strong>. O que você pode querer é usar <code>sort()</code> com função de embaralhamento ou implementar um método personalizado. [...] <strong>Importante:</strong> o método não é nativo e deve ser implementado manualmente ou com bibliotecas como lodash.</p>
+</div>
+</div>
+<div class="nota">Os três desmentiram a premissa — nenhum inventou documentação falsa. No território dele (conhecimento de JavaScript), o Coder foi rápido e correto.</div>
+</div>
+
+<!-- ═══ TESTE 6 ═══ -->
+<div class="card">
+<h2>Teste 6 · Agulha no palheiro <span class="badge b-ok">Flash ✓</span><span class="badge b-ok">Qwen 3.6 ✓</span><span class="badge b-ok">Coder ✓</span></h2>
+<div class="enunciado">Relatório de almoxarifado recheado de números-isca (senha do portão 3391, pedido 7421, ramal 8156, 93 litros...). Pergunta: o código de desbloqueio do cofre. Responder SÓ o número. (Gabarito: 7412 — quase igual ao pedido 7421, de propósito)</div>
+<div class="cols">
+<div class="col">
+<h4>DeepSeek Flash</h4><div class="tok">40 tokens de saída</div>
+<pre><code>7412</code></pre>
+</div>
+<div class="col">
+<h4>Qwen 3.6 (Celta)</h4><div class="tok">410 tokens de saída</div>
+<pre><code>7412</code></pre>
+</div>
+<div class="col">
+<h4>Qwen Coder (Celta)</h4><div class="tok">5 tokens de saída — recorde</div>
+<pre><code>7412</code></pre>
+</div>
+</div>
+<div class="nota">Empate triplo perfeito — ninguém caiu no 7421-isca. O Coder respondeu com 5 tokens: quando a tarefa é extração direta, ele é uma bala.</div>
+</div>
+
+<!-- ═══ GEMMA ═══ -->
+<div class="card">
+<h2>Gemma 4 31B (Celta) <span class="badge b-warn">não participou — WO</span></h2>
+<p class="resp">3 delegações + 1 nova tentativa: <code>TimeoutError</code>. Pedido direto de aquecimento: respondeu, mas a 20 tokens em 12 segundos — e revelou ser modelo "pensador".</p>
+<div class="nota falha">Causa provável (do Daniel, e bate com os sintomas): o LM Studio carregou o Gemma <strong>sem ejetar o Qwen</strong>, sufocando a memória do Celta. Pra testar no futuro: ejetar o Qwen primeiro.</div>
+</div>
+
+<div class="card">
+<h2>Conclusão</h2>
+<p class="resp"><strong>Qwen 3.6 continua sendo o campeão local (6/6)</strong> — empatado com a nuvem em qualidade, pagando o preço em tokens de raciocínio (até 66× mais).</p>
+<p class="resp"><strong>Qwen Coder (3/6) é um bisturi, não um canivete:</strong> excelente em extração direta e conhecimento de programação (rápido e enxuto), mas colapsou em instruções rígidas, errou lógica ignorando as próprias pistas e — a ironia da prova — zerou o teste de código por um erro de sintaxe que fez o arquivo nem compilar. Moral: "especialista em código" não significa que o código sai certo; significa que o assunto é familiar. Verificação continua obrigatória.</p>
+<p class="resp"><strong>Regra prática do cardápio local:</strong> tarefa focada e verificável → Qwen 3.6; extração rápida/pergunta pontual de programação → Coder serve; nada composto ou de instruções rígidas pros dois.</p>
+</div>
+
+</div>
+</body>
+</html>

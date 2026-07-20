@@ -1,0 +1,30 @@
+{
+  "name": "multimodels-mcp",
+  "version": "0.1.0",
+  "description": "MCP server that lets Claude Code (or any MCP-capable agent) delegate tasks to other models: Codex CLI (GPT-5.6), DeepSeek, z.ai, OpenRouter and local LM Studio",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "multimodels-mcp": "dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "test": "npm run build && node --test \"dist/**/*.test.js\"",
+    "build:ui": "npm --prefix ui run build",
+    "panel": "npm run build && node dist/panel/server.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@types/node": "^26.1.1",
+    "typescript": "^7.0.2"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dpmadsen/multimodels-mcp.git"
+  }
+}

@@ -1,0 +1,68 @@
+- **Injeção SQL**
+
+  Trecho: `` `SELECT * FROM pedidos WHERE id = ${id}` ``
+
+  Na prática: alguém pode enviar um `id` malicioso e alterar a consulta ao banco, acessando ou manipulando dados indevidamente.
+
+  Correção: usar parâmetros da biblioteca do banco, por exemplo:
+
+  ```js
+  const pedido = await db.query(
+    'SELECT * FROM pedidos WHERE id = $1',
+    [id]
+  );
+  ```
+
+- **`cupom` ausente ou inválido derruba a rota**
+
+  Trecho: `cupom.toUpperCase()`
+
+  Na prática: uma requisição sem `cupom`, ou com número/objeto no lugar de texto, lança erro e responde 500 em vez de um erro compreensível ao cliente.
+
+  Correção:
+
+  ```js
+  if (typeof cupom !== 'string' || !cupom.trim()) {
+    return res.status(400).json({ erro: 'Cupom inválido' });
+  }
+
+  const valido = cupons.find(c => c.codigo === cupom.toUpperCase());
+  ```
+
+- **Erro de limite no laço acessa um item inexistente**
+
+  Trecho: `for (let i = 0; i <= itens.length; i++)`
+
+  Na prática: na última volta, `itens[i]` é `undefined`. `aplicarDesconto` pode lançar erro, deixando o pedido parcialmente alterado. Se não houver itens, também ocorre divisão por zero.
+
+  Correção:
+
+  ```js
+  if (itens.length > 0) {
+    const descontoPorItem = desconto / itens.length;
+
+    for (let i = 0; i < itens.length; i++) {
+      aplicarDesconto(itens[i], descontoPorItem);
+    }
+  }
+  ```
+
+- **Resposta de sucesso é enviada antes de terminar o registro**
+
+  Trecho:
+
+  ```js
+  res.json({ ok: true, desconto });
+  await registrarLog(id, desconto);
+  ```
+
+  Na prática: o cliente recebe “ok” mesmo se o log falhar. A falha também pode virar uma rejeição sem tratamento, dependendo da configuração do Express/Node.
+
+  Correção: concluir o trabalho crítico antes de confirmar sucesso:
+
+  ```js
+  await registrarLog(id, desconto);
+  return res.json({ ok: true, desconto });
+  ```
+
+  Se o log não puder bloquear a venda, trate a falha explicitamente e monitore-a — mas não deixe a promessa rejeitar sem controle.

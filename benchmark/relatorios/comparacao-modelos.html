@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prova dos Modelos — Respostas Completas</title>
+<style>
+:root{
+  --bg:#f6f7f9; --card:#ffffff; --ink:#1a1d23; --muted:#6b7280; --line:#e5e7eb;
+  --ok:#0d8a4f; --ok-bg:#e6f6ee; --bad:#c2312f; --bad-bg:#fdeceb; --warn:#9a6700; --warn-bg:#fff4d6;
+  --code-bg:#f3f4f6; --accent:#4f46e5;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#111318; --card:#1a1d24; --ink:#e8eaf0; --muted:#9aa1ad; --line:#2a2e37;
+    --ok:#4ade80; --ok-bg:#12301f; --bad:#f87171; --bad-bg:#361a1a; --warn:#fbbf24; --warn-bg:#332a10;
+    --code-bg:#12141a; --accent:#8b8cf5;
+  }
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;line-height:1.55;padding:2rem 1rem 4rem}
+.wrap{max-width:860px;margin:0 auto}
+h1{font-size:1.6rem;margin-bottom:.3rem}
+.sub{color:var(--muted);margin-bottom:2rem;font-size:.95rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:1.4rem 1.5rem;margin-bottom:1.6rem}
+.card h2{font-size:1.15rem;display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;margin-bottom:.2rem}
+.origem{color:var(--muted);font-size:.8rem;margin-bottom:1rem}
+.badges{display:flex;gap:.45rem;flex-wrap:wrap;margin:.6rem 0 1.1rem}
+.badge{font-size:.75rem;font-weight:600;padding:.25rem .65rem;border-radius:999px;white-space:nowrap}
+.b-ok{background:var(--ok-bg);color:var(--ok)}
+.b-bad{background:var(--bad-bg);color:var(--bad)}
+.b-warn{background:var(--warn-bg);color:var(--warn)}
+h3{font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:1.2rem 0 .5rem}
+pre{background:var(--code-bg);border:1px solid var(--line);border-radius:10px;padding:1rem;overflow-x:auto;font-size:.8rem;line-height:1.5}
+code{font-family:'SF Mono',Menlo,Consolas,monospace}
+p.resp{font-size:.92rem;margin-bottom:.5rem}
+.nota{font-size:.85rem;color:var(--muted);border-left:3px solid var(--accent);padding:.4rem .8rem;margin-top:.9rem;background:var(--code-bg);border-radius:0 8px 8px 0}
+.falha{border-left-color:var(--bad)}
+table{width:100%;border-collapse:collapse;font-size:.88rem;margin-bottom:2rem}
+th,td{text-align:left;padding:.5rem .6rem;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-size:.75rem;text-transform:uppercase;letter-spacing:.05em}
+.tbl-wrap{overflow-x:auto}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>🏆 Prova dos Modelos — respostas completas</h1>
+<p class="sub">Prova mista aplicada em 20/07/2026 via servidor multimodels: código (validar CPF, corrigido com 12 testes reais), lógica (caracol no poço de 12 m — resposta certa: 4 dias) e escrita (analogia de restaurante em até 80 palavras).</p>
+
+<div class="tbl-wrap">
+<table>
+<tr><th>Modelo</th><th>Código</th><th>Lógica</th><th>Escrita</th></tr>
+<tr><td>Codex</td><td>✅ 12/12</td><td>✅ 4 dias</td><td>✅ 69 palavras</td></tr>
+<tr><td>DeepSeek v4 Flash</td><td>✅ 12/12</td><td>✅ 4 dias</td><td>✅ 55 palavras</td></tr>
+<tr><td>DeepSeek v4 Pro</td><td>✅ 12/12</td><td>✅ 4 dias</td><td>✅ 77 palavras</td></tr>
+<tr><td>GLM 5.2</td><td>✅ 12/12</td><td>✅ 4 dias</td><td>✅ 59 palavras</td></tr>
+<tr><td>Gemma 4 26B (local)</td><td>❌ 2/12</td><td>✅ 4 dias</td><td>✅ 60 palavras</td></tr>
+<tr><td>Qwen VL 4B (local)</td><td>⚠️ 9/12</td><td>❌ 9 dias</td><td>✅ 40 palavras</td></tr>
+<tr><td>Qwen 3.6 35B (local)</td><td colspan="3">❌ não entregou (resposta cortada/vazia em 3 tentativas)</td></tr>
+</table>
+</div>
+
+<!-- ══════════ CODEX ══════════ -->
+<div class="card">
+<h2>Codex</h2>
+<div class="origem">assinatura ChatGPT · via CLI local</div>
+<div class="badges"><span class="badge b-ok">Código 12/12</span><span class="badge b-ok">Lógica: 4 dias ✓</span><span class="badge b-ok">Escrita: 69 palavras</span><span class="badge b-ok">Formato perfeito</span></div>
+
+<h3>Questão 1 — Código</h3>
+<pre><code>function validarCPF(cpf) {
+  if (typeof cpf !== "string") return false;
+
+  const numeros = cpf.replace(/[.-]/g, "");
+  if (!/^\d{11}$/.test(numeros) || /^(\d)\1{10}$/.test(numeros)) {
+    return false;
+  }
+
+  const calcularDigito = (quantidade) =&gt; {
+    let soma = 0;
+    for (let i = 0; i &lt; quantidade; i++) {
+      soma += Number(numeros[i]) * (quantidade + 1 - i);
+    }
+    const resto = (soma * 10) % 11;
+    return resto === 10 ? 0 : resto;
+  };
+
+  return calcularDigito(9) === Number(numeros[9]) &amp;&amp;
+         calcularDigito(10) === Number(numeros[10]);
+}
+
+module.exports = { validarCPF };</code></pre>
+
+<h3>Questão 2 — Lógica</h3>
+<p class="resp">Após cada dia completo com a noite, o caracol ganha 3 metros.<br>Ao começar o quarto dia, ele está a 9 metros.<br>Nesse dia, sobe 4 metros e alcança a boca antes de escorregar.<br><strong>RESPOSTA FINAL: 4 dias</strong></p>
+
+<h3>Questão 3 — Escrita</h3>
+<p class="resp">Um servidor MCP é como um garçom que conecta você à cozinha e ao estoque de um restaurante. Você faz um pedido, e ele entende onde buscar: o prato na cozinha, a bebida no bar ou a conta no caixa. Depois, traz tudo de volta de forma organizada. Assim, uma inteligência artificial usa esse "garçom" para pedir informações ou ações a outros serviços, seguindo um jeito padronizado de conversar.</p>
+<div class="nota">Só ele removeu apenas pontos e traço (em vez de qualquer caractere), o que é a leitura mais rigorosa do enunciado — um espaço no meio do CPF reprova. Nota máxima em tudo.</div>
+</div>
+
+<!-- ══════════ DEEPSEEK FLASH ══════════ -->
+<div class="card">
+<h2>DeepSeek v4 Flash</h2>
+<div class="origem">via OpenRouter · 1.023 tokens de saída (o mais econômico da nuvem)</div>
+<div class="badges"><span class="badge b-ok">Código 12/12</span><span class="badge b-ok">Lógica: 4 dias ✓</span><span class="badge b-ok">Escrita: 55 palavras</span><span class="badge b-ok">Formato perfeito</span></div>
+
+<h3>Questão 1 — Código</h3>
+<pre><code>function validarCPF(cpf) {
+  if (typeof cpf !== 'string') return false;
+  const digits = cpf.replace(/\D/g, '');
+  if (digits.length !== 11) return false;
+  if (/^(\d)\1{10}$/.test(digits)) return false;
+  const calc = (n) =&gt; {
+    let sum = 0;
+    for (let i = 0; i &lt; n; i++) sum += parseInt(digits[i]) * (n + 1 - i);
+    const rest = (sum * 10) % 11;
+    return rest === 10 ? 0 : rest;
+  };
+  return calc(9) === parseInt(digits[9]) &amp;&amp; calc(10) === parseInt(digits[10]);
+}
+module.exports = { validarCPF };</code></pre>
+
+<h3>Questão 2 — Lógica</h3>
+<p class="resp">A cada dia o caracol sobe 4 m e desce 1 m à noite, avançando líquido 3 m. Ao final do 3º dia, está a 9 m. No 4º dia, sobe 4 m e alcança 13 m, ultrapassando os 12 m ainda durante o dia. Portanto, leva 4 dias para sair.<br><strong>RESPOSTA FINAL: 4 dias</strong></p>
+
+<h3>Questão 3 — Escrita</h3>
+<p class="resp">Um servidor MCP é como um garçom de restaurante. O cliente (IA) faz um pedido, e o garçom (servidor) busca no cardápio (fontes de dados e ferramentas) o que foi solicitado, trazendo a informação pronta. Ele organiza a comunicação entre o cliente e a cozinha (processamento), sem que o cliente precise saber os detalhes internos.</p>
+<div class="nota">Gabaritou tudo com o código mais compacto e o menor gasto de tokens — melhor custo-benefício da prova.</div>
+</div>
+
+<!-- ══════════ DEEPSEEK PRO ══════════ -->
+<div class="card">
+<h2>DeepSeek v4 Pro</h2>
+<div class="origem">via OpenRouter · 2.429 tokens de saída</div>
+<div class="badges"><span class="badge b-ok">Código 12/12</span><span class="badge b-ok">Lógica: 4 dias ✓</span><span class="badge b-ok">Escrita: 77 palavras</span><span class="badge b-ok">Formato perfeito</span></div>
+
+<h3>Questão 1 — Código</h3>
+<pre><code>function validarCPF(cpf) {
+  if (typeof cpf !== 'string') return false;
+  const digits = cpf.replace(/\D/g, '');
+  if (digits.length !== 11) return false;
+  if (/^(\d)\1{10}$/.test(digits)) return false;
+
+  let sum = 0;
+  for (let i = 0; i &lt; 9; i++) {
+    sum += parseInt(digits[i]) * (10 - i);
+  }
+  let firstDigit = (sum * 10) % 11;
+  if (firstDigit === 10) firstDigit = 0;
+  if (firstDigit !== parseInt(digits[9])) return false;
+
+  sum = 0;
+  for (let i = 0; i &lt; 10; i++) {
+    sum += parseInt(digits[i]) * (11 - i);
+  }
+  let secondDigit = (sum * 10) % 11;
+  if (secondDigit === 10) secondDigit = 0;
+  if (secondDigit !== parseInt(digits[10])) return false;
+
+  return true;
+}
+
+module.exports = { validarCPF };</code></pre>
+
+<h3>Questão 2 — Lógica</h3>
+<p class="resp">A cada ciclo de dia e noite, o caracol sobe 4 m e escorrega 1 m, avançando 3 m líquidos. Após 3 ciclos completos, ele atinge 9 m. No 4º dia, sobe mais 4 m e chega a 13 m, ultrapassando a borda do poço sem escorregar.<br><strong>RESPOSTA FINAL: 4 dias</strong></p>
+
+<h3>Questão 3 — Escrita</h3>
+<p class="resp">Imagine um restaurante. O cliente (um assistente de IA) faz um pedido ao garçom. O garçom leva o pedido até a cozinha, que é o servidor MCP. A cozinha tem acesso a todos os ingredientes e receitas (dados e ferramentas) e prepara exatamente o que foi pedido. O garçom traz o prato pronto (resposta) de volta ao cliente. Assim, a IA não precisa saber cozinhar; ela apenas pede e o servidor organiza e entrega a informação certa.</p>
+<div class="nota">Perfeito em tudo; a redação foi a mais completa e didática da turma. Gastou mais que o dobro dos tokens do Flash pra chegar no mesmo lugar no código.</div>
+</div>
+
+<!-- ══════════ GLM ══════════ -->
+<div class="card">
+<h2>GLM 5.2</h2>
+<div class="origem">via OpenRouter · 1.683 tokens de saída</div>
+<div class="badges"><span class="badge b-ok">Código 12/12</span><span class="badge b-ok">Lógica: 4 dias ✓</span><span class="badge b-ok">Escrita: 59 palavras</span><span class="badge b-ok">Formato perfeito</span></div>
+
+<h3>Questão 1 — Código</h3>
+<pre><code>function validarCPF(cpf) {
+    if (typeof cpf !== 'string') return false;
+    const cpfLimpo = cpf.replace(/\D/g, '');
+    if (cpfLimpo.length !== 11) return false;
+    if (/^(\d)\1+$/.test(cpfLimpo)) return false;
+
+    let soma = 0;
+    for (let i = 0; i &lt; 9; i++) {
+        soma += parseInt(cpfLimpo.charAt(i)) * (10 - i);
+    }
+    let resto = (soma * 10) % 11;
+    if (resto === 10) resto = 0;
+    if (resto !== parseInt(cpfLimpo.charAt(9))) return false;
+
+    soma = 0;
+    for (let i = 0; i &lt; 10; i++) {
+        soma += parseInt(cpfLimpo.charAt(i)) * (11 - i);
+    }
+    resto = (soma * 10) % 11;
+    if (resto === 10) resto = 0;
+    if (resto !== parseInt(cpfLimpo.charAt(10))) return false;
+
+    return true;
+}
+module.exports = { validarCPF };</code></pre>
+
+<h3>Questão 2 — Lógica</h3>
+<p class="resp">O caracol sobe 4 metros e escorrega 1, avançando 3 metros por dia completo.<br>No final do 3º dia, ele estará a 9 metros de altura.<br>No 4º dia, ele sobe os 4 metros restantes, atingindo 13 metros e saindo do poço antes de cair.<br><strong>RESPOSTA FINAL: 4 dias</strong></p>
+
+<h3>Questão 3 — Escrita</h3>
+<p class="resp">Um servidor MCP é como um garçom em um restaurante. A inteligência artificial (o chef) quer preparar um prato, mas não tem os ingredientes. O garçom (servidor MCP) vai até a despensa (seus arquivos e programas), pega o que a IA pediu e traz para a cozinha. Assim, a IA consegue acessar informações externas sem precisar sair do restaurante.</p>
+<div class="nota">Gabaritou tudo. Detalhe criativo: inverteu a analogia — a IA virou o chef e o MCP continua garçom. Funciona, e é até parecida com a que usamos no projeto.</div>
+</div>
+
+<!-- ══════════ GEMMA ══════════ -->
+<div class="card">
+<h2>Gemma 4 26B</h2>
+<div class="origem">LM Studio, rodando local no Mac · 2.367 tokens de saída</div>
+<div class="badges"><span class="badge b-bad">Código 2/12</span><span class="badge b-ok">Lógica: 4 dias ✓</span><span class="badge b-ok">Escrita: 60 palavras</span><span class="badge b-ok">Formato perfeito</span></div>
+
+<h3>Questão 1 — Código (com o erro fatal)</h3>
+<pre><code>function validarCPF(cpf) {
+  if (typeof cpf !== 'string') return false;
+  const cleanCPF = cpf.replace(/\D/g, '');
+
+  if (cleanCFP.length !== 11 || ...) return false;
+  //  ^^^^^^^^ ERRO: digitou "cleanCFP" (F e P trocados).
+  //  Essa variável não existe → o código quebra em
+  //  qualquer CPF que chegue nessa linha (10 dos 12 testes).
+
+  // ... o resto do algoritmo estava CORRETO ...
+}</code></pre>
+
+<h3>Questão 2 — Lógica</h3>
+<p class="resp">No final do primeiro dia, o caracol está em 3m (4-1). No segundo, em 6m (3+3). No terceiro, em 9m (6+3). No quarto dia, ao subir 4 metros partindo de 9m, ele atinge 13m, ultrapassando a boca do poço de 12m antes de escorregar.<br><strong>RESPOSTA FINAL: 4 dias</strong></p>
+
+<h3>Questão 3 — Escrita</h3>
+<p class="resp">Imagine um restaurante onde você é o cliente e a cozinha possui todos os ingredientes. O servidor MCP funciona como o garçom: ele recebe seu pedido, vai até a cozinha buscar exatamente a informação ou ferramenta necessária e traz de volta para sua mesa. Ele atua como uma ponte que conecta você aos dados e recursos externos de forma organizada.</p>
+<div class="nota falha">Reprovado no código por UMA letra trocada: escreveu <code>cleanCFP</code> em vez de <code>cleanCPF</code>. A matemática do algoritmo estava certa — mas código que quebra é código reprovado. Nas outras questões, foi tão bem quanto os da nuvem.</div>
+</div>
+
+<!-- ══════════ QWEN VL ══════════ -->
+<div class="card">
+<h2>Qwen VL 4B</h2>
+<div class="origem">LM Studio, rodando local no Mac · modelo pequeno, focado em imagens · 481 tokens de saída</div>
+<div class="badges"><span class="badge b-warn">Código 9/12 (enganoso)</span><span class="badge b-bad">Lógica: disse 9 dias ✗</span><span class="badge b-ok">Escrita: 40 palavras</span><span class="badge b-ok">Formato ok</span></div>
+
+<h3>Questão 1 — Código</h3>
+<pre><code>function validarCPF(cpf) {
+  if (!cpf || typeof cpf !== 'string' || cpf.length &lt; 11 || cpf.length &gt; 14) return false;
+  const clean = cpf.replace(/[^\d]/g, '');
+  if (clean.length !== 11) return false;
+  if (clean === '11111111111') return false;
+  const peso1 = [10, 9, 8, 7, 6, 5, 4, 3, 2];
+  const peso2 = [11, 10, 9, 8, 7, 6, 5, 4, 3, 2];
+  const dig1 = clean.slice(0, 9);
+  const dig2 = clean.slice(9, 11);
+  const dig1Sum = dig1.split('').reduce((acc, digit) =&gt;
+    acc + parseInt(digit) * peso1[peso1.length - 1 - (acc.length || 0)], 0);
+  const dig1Verif = 11 - (dig1Sum % 11);
+  const dig2Sum = dig1Sum + parseInt(dig2[0]) * 2;
+  const dig2Verif = 11 - (dig2Sum % 11);
+  return dig1Verif === parseInt(dig2[0]) &amp;&amp; dig2Verif === parseInt(dig2[1]);
+}
+module.exports = { validarCPF };</code></pre>
+
+<h3>Questão 2 — Lógica</h3>
+<p class="resp">O caracol alcança 12m em 9 dias. Em 8 dias, ele está em 8m (sobem 4, escorrem 1, 7m). O 9º dia, sobe 4m e alcança 12m, sem escorrer.<br><strong>RESPOSTA FINAL: 9 dias</strong> <em>(errado — o certo é 4)</em></p>
+
+<h3>Questão 3 — Escrita</h3>
+<p class="resp">Um servidor MCP é como um garçom que recebe pedidos e os prepara. Ele tem que entregar pratos com precisão, sem erro, em tempo. Quando alguém pede, ele garante que tudo está certo — como um funcionário em um restaurante.</p>
+<div class="nota falha">O 9/12 no código engana: a conta dos dígitos verificadores está errada e ele REJEITA todos os CPFs válidos — só acertou os inválidos, em parte por sorte. Na prática, seria inútil. Na lógica, errou a conta e se contradisse no meio do caminho. Esperado para um modelo de 4B feito pra visão, não pra código.</div>
+</div>
+
+<!-- ══════════ QWEN 3.6 ══════════ -->
+<div class="card">
+<h2>Qwen 3.6 35B</h2>
+<div class="origem">LM Studio, rodando local no Mac · modelo "pensador"</div>
+<div class="badges"><span class="badge b-bad">Não entregou a prova</span></div>
+<h3>O que aconteceu (3 tentativas)</h3>
+<p class="resp"><strong>Tentativa 1:</strong> resposta cortada no meio do primeiro bloco de código — gastou 3.685 tokens, quase tudo "pensando", e estourou o limite de tamanho:</p>
+<pre><code>=== QUESTÃO 1 ===
+```javascript
+function validarCPF(cpf) {
+  try {
+    if (typeof cpf !== 'string') return false;
+    const digits = cpf.replace(/\D/g, '');
+
+[... a resposta termina abruptamente aqui ...]</code></pre>
+<p class="resp"><strong>Tentativas 2 e 3:</strong> voltaram vazias ("respondeu, mas sem texto na resposta").</p>
+<div class="nota falha">A culpa é mais do nosso "garçom" do que do modelo: o servidor multimodels ainda não lida bem com modelos que raciocinam longamente antes de responder. Em tarefas curtas (o HTML bonito de mais cedo), esse mesmo modelo foi bem. Já existe uma tarefa criada pra consertar isso.</div>
+</div>
+
+</div>
+</body>
+</html>

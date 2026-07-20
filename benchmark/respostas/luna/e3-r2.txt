@@ -1,0 +1,58 @@
+Problemas reais:
+
+1. **SQL Injection**
+
+   ```js
+   `SELECT * FROM pedidos WHERE id = ${id}`
+   ```
+
+   `id` vem diretamente da URL. Um atacante pode alterar a consulta, por exemplo usando `1 OR 1=1`, acessando pedidos indevidos ou causando erro.
+
+   **Correção:**
+
+   ```js
+   const pedido = await db.query(
+     'SELECT * FROM pedidos WHERE id = $1',
+     [id]
+   );
+   ```
+
+   Valide também que `id` tem o formato esperado.
+
+2. **Entrada inválida quebra a requisição**
+
+   ```js
+   const { cupom } = req.body;
+   ...
+   cupom.toUpperCase()
+   ```
+
+   Sem `cupom`, ou com um valor que não seja texto, ocorre `TypeError`. Isso transforma uma entrada inválida do cliente em erro interno da API.
+
+   **Correção:**
+
+   ```js
+   const cupom = req.body?.cupom;
+
+   if (typeof cupom !== 'string') {
+     return res.status(400).json({ erro: 'Cupom inválido' });
+   }
+   ```
+
+3. **Índice além do fim da lista**
+
+   ```js
+   for (let i = 0; i <= itens.length; i++) {
+     aplicarDesconto(itens[i], desconto / itens.length);
+   }
+   ```
+
+   Na última iteração, `itens[i]` é `undefined`. Isso pode quebrar `aplicarDesconto`; com lista vazia, ainda calcula `desconto / 0`.
+
+   **Correção:**
+
+   ```js
+   for (let i = 0; i < itens.length; i++) {
+     aplicarDesconto(itens[i], desconto / itens.length);
+   }
+   ```

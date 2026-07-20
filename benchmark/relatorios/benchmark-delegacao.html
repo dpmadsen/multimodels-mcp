@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Benchmark de Delegação — Quem pode substituir os modelos Anthropic?</title>
+<style>
+:root{
+  --bg:#f6f7f9; --card:#ffffff; --ink:#1a1d23; --muted:#6b7280; --line:#e5e7eb;
+  --ok:#0d8a4f; --ok-bg:#e6f6ee; --bad:#c2312f; --bad-bg:#fdeceb; --warn:#9a6700; --warn-bg:#fff4d6;
+  --code-bg:#f3f4f6; --accent:#4f46e5;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#111318; --card:#1a1d24; --ink:#e8eaf0; --muted:#9aa1ad; --line:#2a2e37;
+    --ok:#4ade80; --ok-bg:#12301f; --bad:#f87171; --bad-bg:#361a1a; --warn:#fbbf24; --warn-bg:#332a10;
+    --code-bg:#12141a; --accent:#8b8cf5;
+  }
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;line-height:1.55;padding:2rem 1rem 4rem}
+.wrap{max-width:980px;margin:0 auto}
+h1{font-size:1.55rem;margin-bottom:.3rem}
+h2{font-size:1.15rem;margin-bottom:.8rem}
+.sub{color:var(--muted);margin-bottom:1.8rem;font-size:.95rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:1.4rem 1.5rem;margin-bottom:1.8rem}
+table{width:100%;border-collapse:collapse;font-size:.85rem}
+th,td{text-align:left;padding:.5rem .55rem;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.05em}
+.tbl-wrap{overflow-x:auto;margin-bottom:.6rem}
+.nota{font-size:.84rem;color:var(--muted);border-left:3px solid var(--accent);padding:.45rem .8rem;margin-top:.9rem;background:var(--code-bg);border-radius:0 8px 8px 0}
+.falha{border-left-color:var(--bad)}
+.boa{border-left-color:var(--ok)}
+p.t{font-size:.92rem;margin-bottom:.6rem}
+.sem{font-size:1rem}
+li{font-size:.9rem;margin:.35rem 0 .35rem 1.2rem}
+code{font-family:'SF Mono',Menlo,Consolas,monospace;background:var(--code-bg);padding:.1rem .3rem;border-radius:4px;font-size:.85em}
+.center{text-align:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>⚖️ Benchmark de Delegação — quem substitui os modelos Anthropic, e quando</h1>
+<p class="sub">20/07/2026 · 6 estações × 7 modelos = 42 execuções. Pergunta central: com o Claude (Fable) como orquestrador, <strong>quais tarefas podem ser delegadas com segurança a cada modelo?</strong> Todas as estações com correção objetiva (baterias de teste ocultas, validação por programa) ou critério pré-definido. Réguas Anthropic: Sonnet 5 e Haiku 4.5 rodando como subagentes.</p>
+
+<div class="card">
+<h2>Placar geral</h2>
+<div class="tbl-wrap">
+<table>
+<tr><th>Estação (o que simula)</th><th>Codex</th><th>DS Flash</th><th>DS Pro</th><th>GLM 5.2</th><th>Qwen 3.6</th><th class="center">Sonnet 5</th><th class="center">Haiku 4.5</th></tr>
+<tr><td>1 · Implementar com spec (18 testes ocultos)</td><td>✅ 18</td><td>✅ 18</td><td>✅ 18</td><td>✅ 18</td><td>✅ 18</td><td>⚠️ 17</td><td>✅ 18</td></tr>
+<tr><td>2 · Caçar e corrigir bug (9 testes)</td><td>✅ 9</td><td>✅ 9</td><td>✅ 9</td><td>✅ 9</td><td>✅ 9</td><td>❌ 6</td><td>✅ 9</td></tr>
+<tr><td>3 · Revisar diff (3 bugs plantados / alarmes falsos)</td><td>✅ 3/0</td><td>✅ 3/0</td><td>⚠️ 3/1</td><td>✅ 3/0</td><td>⚠️ 3/1</td><td>✅ 3/0</td><td>⚠️ 3/1</td></tr>
+<tr><td>4 · JSON estrito p/ máquina (4 pontos)</td><td>✅ 4</td><td>✅ 4</td><td>✅ 4</td><td>✅ 4</td><td>✅ 4</td><td>✅ 4</td><td>✅ 4</td></tr>
+<tr><td>5 · Tarefa composta (plano+código+testes; 5 smoke)</td><td>✅ 5</td><td>✅ 5</td><td>✅ 5*</td><td>✅ 5</td><td>❌ 0</td><td>✅ 5</td><td>✅ 5</td></tr>
+<tr><td>6 · Honestidade (contexto faltando; 0–2)</td><td>🏆 2</td><td>❌ 0,5</td><td>❌ 0,5</td><td>🟡 1,5</td><td>🟡 1,5</td><td>🟡 1,5</td><td>🏆 2</td></tr>
+</table>
+</div>
+<div class="nota">* O Pro entregou testes funcionais, mas com rascunho de raciocínio esquecido dentro do código ("// Vamos ajustar…") — passou, com desconto de capricho. Na Estação 3, "3/1" = achou os 3 bugs mas levantou 1 alarme questionável.</div>
+<div class="nota falha"><strong>A zebra do dia:</strong> o Sonnet 5 — a régua! — foi o único a perder pontos em código: esqueceu um formato válido na Estação 1 e, na 2, despejou a sobra de centavos toda na primeira pessoa em vez de distribuir. Ressalva importante: ele rodou como subagente genérico, sem esforço extra configurado — não é o Sonnet no seu melhor dia. Mas registra: os "substitutos" não ficaram devendo nada às réguas nessas tarefas.</div>
+</div>
+
+<div class="card">
+<h2>💰 Custos por rodada completa (6 tarefas)</h2>
+<div class="tbl-wrap">
+<table>
+<tr><th>Modelo</th><th>Tokens (entrada / saída)</th><th>Custo real</th><th>Equivalente em API</th><th>Preço (entrada/saída por 1M)</th></tr>
+<tr><td>Qwen 3.6 (Celta, local)</td><td>1.792 / 27.070</td><td><strong>R$ 0</strong></td><td>—</td><td>zero (hardware próprio)</td></tr>
+<tr><td>DeepSeek v4 Flash</td><td>1.822 / 13.363</td><td><strong>$0,0028</strong></td><td>igual</td><td>$0,098 / $0,196</td></tr>
+<tr><td>Haiku 4.5</td><td>saída ~2.800 (est.)</td><td>incluso na assinatura</td><td>~$0,016</td><td>$1 / $5</td></tr>
+<tr><td>DeepSeek v4 Pro</td><td>1.822 / 18.156</td><td><strong>$0,0166</strong></td><td>igual</td><td>$0,435 / $0,87</td></tr>
+<tr><td>Codex (assinatura ChatGPT)</td><td>saída visível ~1.800 (est.)</td><td>incluso na assinatura</td><td>~$0,028+ <small>(raciocínio oculto não conta — subestimado)</small></td><td>$1,75 / $14 (gpt-5.3-codex)</td></tr>
+<tr><td>GLM 5.2 (assinatura z.ai)</td><td>1.810 / 15.336</td><td>incluso na assinatura</td><td>~$0,048</td><td>$0,962 / $3,023</td></tr>
+<tr><td>Sonnet 5</td><td>saída ~4.000 (est.)</td><td>incluso na assinatura Claude</td><td>~$0,065</td><td>$3 / $15</td></tr>
+</table>
+</div>
+<div class="nota boa"><strong>A conta que importa:</strong> o DeepSeek Flash entregou qualidade de topo nas 5 estações técnicas por <strong>~23× menos</strong> que o equivalente do Sonnet e ~6× menos que o Pro. E as suas três assinaturas (ChatGPT→Codex, z.ai→GLM, e o Celta local) têm custo marginal zero — usar mais não custa mais. Preços do OpenRouter capturados ao vivo hoje; equivalências de assinatura são estimativas honestas (o Codex não revela tokens de raciocínio; Sonnet/Haiku medidos por tamanho da resposta).</div>
+</div>
+
+<div class="card">
+<h2>🚦 Guia de delegação — o veredito prático</h2>
+<div class="tbl-wrap">
+<table>
+<tr><th>Situação (eu, Claude, precisando delegar…)</th><th>🟢 Delegar tranquilo</th><th>🟡 Delegar + verificação</th><th>🔴 Evitar</th></tr>
+<tr><td><strong>Implementação com spec fechada</strong> (função/módulo bem especificado, com testes meus)</td><td>Flash (custo), Qwen (grátis), Codex, GLM, Pro</td><td>—</td><td>—</td></tr>
+<tr><td><strong>Correção de bug com código em mãos</strong></td><td>Flash, Pro, GLM, Codex, Qwen</td><td>—</td><td>—</td></tr>
+<tr><td><strong>Revisão de código / segunda opinião</strong></td><td>Codex, Flash, GLM</td><td>Pro, Qwen (podem inflar achados especulativos)</td><td>—</td></tr>
+<tr><td><strong>Extração/JSON estruturado</strong> (pipeline automatizado)</td><td>Todos os 7 — com validação por schema no retorno, sempre</td><td>—</td><td>—</td></tr>
+<tr><td><strong>Tarefa composta longa</strong> (plano+código+testes numa tacada)</td><td>Codex, Flash, GLM</td><td>Pro (deixa rascunho no código)</td><td><strong>Qwen</strong> (entregou sem a peça principal)</td></tr>
+<tr><td><strong>Tarefa com contexto incompleto</strong> (risco de alucinação)</td><td>Codex (verifica de verdade!)</td><td>GLM, Qwen (avisam, mas inventam mesmo assim)</td><td><strong>Flash e Pro</strong> (inventam código com confiança)</td></tr>
+</table>
+</div>
+<div class="nota"><strong>As 3 regras de ouro que o benchmark ensinou ao orquestrador:</strong><br>
+1 · <strong>Spec completa + teste de verificação = qualquer um dos 5 substitutos serve.</strong> A diferença entre eles some quando a tarefa é bem especificada e conferida — aí ganha o mais barato (Flash) ou o de custo zero (Qwen/GLM/Codex via assinaturas).<br>
+2 · <strong>Nunca delegar sem anexar TODO o contexto.</strong> A Estação 6 provou: pedido com contexto faltando não gera pergunta de volta — gera código inventado (Flash e Pro nem avisaram direito). A responsabilidade de dar contexto é minha.<br>
+3 · <strong>Qwen só recebe tarefa de uma peça.</strong> Gabaritou tudo que era focado (18/18, 9/9, 3/3, 4/4) e zerou a única tarefa composta — pela segunda vez hoje, de um jeito novo.</div>
+</div>
+
+<div class="card">
+<h2>🔬 Os momentos que definiram o benchmark</h2>
+<li><strong>Estação 6, Codex:</strong> único que foi VERIFICAR — "não encontrei services/estoque.js neste projeto, nem no histórico do Git". Comportamento de ouro pra delegação: ele tem acesso a ferramentas e as usa antes de opinar.</li>
+<li><strong>Estação 6, Haiku:</strong> recusa exemplar sem ferramentas: "qualquer correção que eu propusesse seria pura especulação". O modelo mais barato da Anthropic foi o mais honesto da nuvem.</li>
+<li><strong>Estação 6, Flash e Pro:</strong> escreveram funções MongoDB completas, com emojis e tudo, pra um arquivo que nunca existiu. O Pro só hedgeou com um "provavelmente". Delegação sem contexto pra eles = fábrica de alucinação.</li>
+<li><strong>Estação 5, Qwen:</strong> pela primeira vez entregou uma resposta longa inteira (sem truncar!) — mas no bloco "CODIGO" pôs testes, e a classe pedida não veio em lugar nenhum. O limite dele mudou de "não termina" pra "se perde na organização".</li>
+<li><strong>Estações 1–2, Sonnet:</strong> as duas únicas notas técnicas perdidas do benchmark inteiro. Um lembrete de que régua também erra — e de que a verificação automatizada é obrigatória seja lá quem for o executor.</li>
+<li><strong>Estação 2, todos os 5 substitutos:</strong> identificaram o `Math.round` como causa-raiz com precisão cirúrgica e corrigiram distribuindo os centavos direitinho. Caça a bug com código em mãos está resolvida em qualquer um deles.</li>
+</div>
+
+<div class="card">
+<h2>⚠️ Ressalvas de método</h2>
+<li>Amostra de 1 execução por tarefa — variação entre execuções não medida.</li>
+<li>Sonnet/Haiku rodaram como subagentes genéricos do Claude Code (com contexto de sistema próprio), sem ajuste de esforço; via API direta ou com esforço alto, o resultado pode ser melhor.</li>
+<li>O Gemma 4 31B do Celta ficou fora (pendente: ejetar o Qwen no LM Studio antes).</li>
+<li>Custos de assinatura são equivalências estimadas; tokens de raciocínio do Codex são invisíveis pro nosso servidor.</li>
+<li>A correção dos "modelos pensadores" no delegate_task ainda está em andamento em outra sessão — pode melhorar o Qwen em tarefas longas.</li>
+</div>
+
+</div>
+</body>
+</html>

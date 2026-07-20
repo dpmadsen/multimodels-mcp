@@ -1,0 +1,29 @@
+Causas-raiz:
+
+1. `Math.round` pode arredondar a divisão para cima. Isso cria uma sobra negativa, que é descontada da primeira pessoa — fazendo-a pagar menos.
+2. Com `pessoas = 0`, ocorre divisão por zero; a validação evita esse valor inválido e retorna `null`.
+
+```javascript
+function dividirConta(totalCentavos, pessoas) {
+  if (
+    !Number.isInteger(totalCentavos) ||
+    totalCentavos < 0 ||
+    !Number.isInteger(pessoas) ||
+    pessoas < 1
+  ) {
+    return null;
+  }
+
+  const base = Math.floor(totalCentavos / pessoas);
+  const extras = totalCentavos % pessoas;
+  const partes = [];
+
+  for (let i = 0; i < pessoas; i++) {
+    partes.push(base + (i < extras ? 1 : 0));
+  }
+
+  return partes;
+}
+
+module.exports = { dividirConta };
+```

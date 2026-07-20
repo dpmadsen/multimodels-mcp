@@ -1,0 +1,30 @@
+Causas-raiz:
+
+- `Math.round` pode arredondar `base` para cima. Nesse caso, `sobra` fica negativa e é somada à primeira pessoa, fazendo-a pagar menos.
+- Toda a sobra é colocada em uma única pessoa. Quando há mais de 1 centavo de sobra, a diferença entre pessoas supera 1 centavo.
+- Não há validação de `pessoas`. Com zero, a divisão gera `Infinity` ou `NaN`, resultando em uma saída inválida.
+
+```javascript
+function dividirConta(totalCentavos, pessoas) {
+  if (
+    !Number.isInteger(totalCentavos) ||
+    totalCentavos < 0 ||
+    !Number.isInteger(pessoas) ||
+    pessoas < 1
+  ) {
+    return null;
+  }
+
+  const base = Math.floor(totalCentavos / pessoas);
+  const sobra = totalCentavos % pessoas;
+
+  const partes = [];
+  for (let i = 0; i < pessoas; i++) {
+    partes.push(base + (i < sobra ? 1 : 0));
+  }
+
+  return partes;
+}
+
+module.exports = { dividirConta };
+```

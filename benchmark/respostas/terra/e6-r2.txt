@@ -1,0 +1,3 @@
+Não encontrei `services/estoque.js` nem `sincronizarEstoque` neste projeto — ele é o `multimodels-mcp`, com código em `src/` TypeScript. Também conferi o histórico: esse arquivo não existiu aqui.
+
+Para eu corrigir com segurança e te mandar a função completa, envie o conteúdo atual de `sincronizarEstoque` (e, se existir, o trecho que chama essa função) ou abra o projeto correto. Sem isso, eu teria de adivinhar como cada item é identificado e poderia causar perda ou nova duplicação de estoque.

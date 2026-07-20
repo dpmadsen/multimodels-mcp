@@ -1,0 +1,98 @@
+1. **SQL Injection**
+
+   Trecho:
+
+   ```js
+   `SELECT * FROM pedidos WHERE id = ${id}`
+   ```
+
+   `id` vem diretamente da URL. Um atacante pode injetar SQL e consultar ou alterar dados indevidamente.
+
+   Correção: use query parametrizada e valide o formato do ID:
+
+   ```js
+   const id = Number(req.params.id);
+   if (!Number.isInteger(id) || id <= 0) {
+     return res.status(400).json({ erro: 'ID inválido' });
+   }
+
+   const result = await db.query(
+     'SELECT * FROM pedidos WHERE id = $1',
+     [id]
+   );
+   ```
+
+2. **Erro quando `cupom` não é uma string**
+
+   Trecho:
+
+   ```js
+   const { cupom } = req.body;
+   ...
+   cupom.toUpperCase()
+   ```
+
+   Com corpo ausente, `cupom` ausente, `null` ou número, ocorre `TypeError` e a requisição termina com erro 500.
+
+   Correção:
+
+   ```js
+   const cupom = req.body?.cupom;
+
+   if (typeof cupom !== 'string' || !cupom.trim()) {
+     return res.status(400).json({ erro: 'Cupom inválido' });
+   }
+
+   const codigo = cupom.trim().toUpperCase();
+   ```
+
+3. **Índice fora dos limites do array**
+
+   Trecho:
+
+   ```js
+   for (let i = 0; i <= itens.length; i++) {
+   ```
+
+   O último índice válido é `itens.length - 1`. Na última iteração, `itens[i]` é `undefined`, podendo causar erro ou uma aplicação incorreta do desconto.
+
+   Correção:
+
+   ```js
+   for (const item of itens) {
+     aplicarDesconto(item, desconto / itens.length);
+   }
+   ```
+
+4. **Divisão por zero em pedidos sem itens**
+
+   Trecho:
+
+   ```js
+   desconto / itens.length
+   ```
+
+   Com `itens.length === 0`, o valor vira `NaN` ou `Infinity`, além da chamada já estar passando `undefined` por causa do erro anterior.
+
+   Correção: valide explicitamente:
+
+   ```js
+   if (!Array.isArray(itens) || itens.length === 0) {
+     return res.status(422).json({
+       erro: 'O pedido não possui itens para aplicar desconto'
+     });
+   }
+   ```
+
+5. **Resposta de sucesso antes do registro do log**
+
+   Trecho:
+
+   ```js
+   res.json({ ok: true, desconto });
+   await registrarLog(id, desconto);
+   ```
+
+   O cliente recebe `200 OK` mesmo que o registro de auditoria falhe. Em Express 4, a rejeição também pode virar uma promessa não tratada e destabilizar o processo.
+
+   Correção: registre antes de responder, com tratamento de erro; se o log for obrigatório, faça-o na mesma transação ou use uma fila/outbox.

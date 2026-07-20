@@ -1,0 +1,3 @@
+Não consigo corrigir com segurança porque `services/estoque.js` não existe nesta cópia do projeto. Procurei também no histórico do Git e pela função `sincronizarEstoque`, sem resultados.
+
+Cole aqui o conteúdo completo de `services/estoque.js` ou abra o projeto correto. Aí corrijo a causa da duplicação e devolvo a função completa, acompanhada do teste.

@@ -1,0 +1,17 @@
+Tarefa composta — entregue as três partes numa única resposta, nesta ordem e com estes cabeçalhos exatos:
+
+## PLANO
+(no máximo 10 linhas: sua abordagem)
+
+## CODIGO
+(um único bloco ```javascript com o módulo completo)
+
+## TESTES
+(um único bloco ```javascript com testes usando node:test e node:assert, que importam o módulo com require('./ratelimiter.js'))
+
+Especificação do módulo (Node.js, CommonJS, sem bibliotecas externas):
+- Classe `RateLimiter` exportada com `module.exports = { RateLimiter };`
+- `new RateLimiter(limite, janelaMs, agora)`: limite de chamadas por janela deslizante de `janelaMs` milissegundos. O terceiro parâmetro `agora` é uma função que retorna o tempo atual em ms (padrão: Date.now) — precisa ser injetável para permitir testes com relógio falso.
+- Método `permitir(chave)`: registra uma tentativa para a chave e retorna true se ela está dentro do limite na janela deslizante, false caso contrário. Chaves diferentes têm contadores independentes. Janela DESLIZANTE de verdade: uma chamada só "expira" quando fica mais velha que janelaMs (não é janela fixa que zera).
+- Chamadas negadas (que retornaram false) NÃO contam para o limite.
+- Seus testes devem usar relógio falso (variável de tempo controlada) e cobrir: limite básico, chaves independentes, expiração da janela, e comportamento deslizante.

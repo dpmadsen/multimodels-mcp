@@ -1,0 +1,87 @@
+- **SQL injection**
+
+  Trecho: ``WHERE id = ${id}``
+
+  Na prática: `id` vem da URL; um valor malicioso pode alterar a consulta.
+
+  Correção: use parâmetros:
+
+  ```js
+  const pedido = await db.query(
+    'SELECT * FROM pedidos WHERE id = $1', [id]
+  );
+  ```
+
+  (Use o placeholder do seu driver: `$1`, `?`, etc.)
+
+- **Pedido inexistente não é detectado corretamente**
+
+  Trecho:
+
+  ```js
+  const pedido = await db.query(...);
+  if (!pedido)
+  ```
+
+  Na prática: drivers normalmente retornam uma lista/envelope vazio, que é truthy. O código segue e acessa `pedido.total`/`pedido.itens`, causando erro ou valores inválidos.
+
+  Correção: extraia e valide a linha retornada:
+
+  ```js
+  const { rows } = await db.query('SELECT * FROM pedidos WHERE id = $1', [id]);
+  const pedido = rows[0];
+  if (!pedido) return res.status(404).json({ erro: 'Pedido não encontrado' });
+  ```
+
+- **`cupom` ausente ou não textual derruba a requisição**
+
+  Trecho: `cupom.toUpperCase()`
+
+  Na prática: um POST sem `cupom`, ou com número/objeto, gera `TypeError` e retorna 500.
+
+  Correção:
+
+  ```js
+  if (typeof cupom !== 'string') {
+    return res.status(400).json({ erro: 'Cupom inválido' });
+  }
+  const codigoCupom = cupom.toUpperCase();
+  ```
+
+- **Erro de limite no loop aplica um item inexistente**
+
+  Trecho:
+
+  ```js
+  for (let i = 0; i <= itens.length; i++) {
+    aplicarDesconto(itens[i], desconto / itens.length);
+  }
+  ```
+
+  Na prática: na última iteração, `itens[i]` é `undefined`. Isso pode lançar erro depois de já ter alterado itens anteriores, deixando o pedido parcialmente atualizado.
+
+  Correção:
+
+  ```js
+  for (let i = 0; i < itens.length; i++) {
+    aplicarDesconto(itens[i], desconto / itens.length);
+  }
+  ```
+
+- **Resposta de sucesso é enviada antes de concluir o log**
+
+  Trecho:
+
+  ```js
+  res.json({ ok: true, desconto });
+  await registrarLog(id, desconto);
+  ```
+
+  Na prática: o cliente recebe sucesso mesmo se o log falhar. A rejeição posterior pode ainda virar erro não tratado (especialmente em Express 4).
+
+  Correção: registre antes de responder e trate falhas da rota:
+
+  ```js
+  await registrarLog(id, desconto);
+  return res.json({ ok: true, desconto });
+  ```

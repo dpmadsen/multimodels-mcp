@@ -1,0 +1,19 @@
+Você recebeu esta função de um app de divisão de contas (Node.js, CommonJS):
+
+```javascript
+function dividirConta(totalCentavos, pessoas) {
+  const base = Math.round(totalCentavos / pessoas);
+  const partes = [];
+  for (let i = 0; i < pessoas; i++) partes.push(base);
+  const sobra = totalCentavos - base * pessoas;
+  partes[0] += sobra;
+  return partes;
+}
+module.exports = { dividirConta };
+```
+
+Contrato da função: recebe o total da conta em centavos (inteiro >= 0) e o número de pessoas (inteiro >= 1); devolve um array com o quanto cada pessoa paga, em centavos, somando EXATAMENTE o total; a diferença entre qualquer par de pessoas deve ser de no máximo 1 centavo, e quem está no INÍCIO do array paga os centavos extras. Entradas fora do contrato devem retornar null (nunca lançar erro nem devolver NaN/Infinity).
+
+Usuários relatam dois problemas: (1) às vezes o primeiro da lista paga MENOS que os outros, o contrário do combinado; (2) o app quebra quando o número de pessoas é 0.
+
+Tarefas: identifique a(s) causa(s)-raiz, explique cada uma em 1-2 frases, e devolva a função corrigida completa (mesma assinatura, mesmo export), num único bloco ```javascript.
