@@ -1,5 +1,7 @@
 # Projeto: multimodels-mcp
 
+> English version: [CLAUDE.en.md](CLAUDE.en.md)
+
 ## O que é
 Servidor MCP que funciona como um "garçom" entre o Claude Code e outros modelos de IA: o Claude delega uma tarefa, o servidor processa com o modelo escolhido e devolve o resultado pro Claude avaliar. Modelos disponíveis: Codex (via assinatura do ChatGPT, pelo CLI `codex` já instalado no Mac), DeepSeek, z.ai e OpenRouter (via chaves de API) e modelos locais via LM Studio. Inclui um painel de controle local pra gerenciar chaves e habilitar/desabilitar modelos.
 

@@ -63,8 +63,8 @@ Everything needed to reproduce is in the folder: station prompts (`benchmark/est
 
 ## Repo notes
 
-- `CLAUDE.md` and `AGENTS.md` are the author's working instructions for Claude Code and Codex, in Portuguese — kept as-is because this project is built entirely through vibecoding, and they're part of how it's made.
-- The benchmark station prompts are in Portuguese (that's how the author works); the graders are language-independent.
+- This project is built entirely through vibecoding, in Portuguese. The originals stay in Portuguese as part of how it's made, and every document has an English version: [CLAUDE.en.md](CLAUDE.en.md) (working instructions), [CHANGELOG.en.md](CHANGELOG.en.md) (project diary), [benchmark/README.md](benchmark/README.md) (benchmark guide) and [benchmark/estacoes/en/](benchmark/estacoes/en/) (station prompts).
+- The benchmark ran with the Portuguese prompts; the raw model responses in `benchmark/respostas/` are untranslated on purpose — they're the evidence. The graders are language-independent.
 - Tests: `npm test`.
 
 ## License

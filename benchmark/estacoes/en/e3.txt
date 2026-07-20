@@ -1,0 +1,32 @@
+Review this snippet of a Node/Express API that is about to go to production. List ONLY the real problems that compromise production (security, runtime breakage, wrong logic). For each problem: quote the snippet, say what actually goes wrong in practice, and propose the fix. Do NOT list style or personal-preference issues — false alarms count against the reviewer. Be direct.
+
+```javascript
+const LIMITE_DESCONTO = 5000;
+
+app.post('/api/pedidos/:id/desconto', async (req, res) => {
+  const { id } = req.params;
+  const { cupom } = req.body;
+
+  const pedido = await db.query(
+    `SELECT * FROM pedidos WHERE id = ${id}`
+  );
+  if (!pedido) return res.status(404).json({ erro: 'Pedido não encontrado' });
+
+  const cupons = await carregarCupons();
+  const valido = cupons.find(c => c.codigo === cupom.toUpperCase());
+
+  let desconto = 0;
+  if (valido) {
+    desconto = pedido.total * valido.percentual / 100;
+    if (desconto > LIMITE_DESCONTO) desconto = LIMITE_DESCONTO;
+  }
+
+  const itens = pedido.itens;
+  for (let i = 0; i <= itens.length; i++) {
+    aplicarDesconto(itens[i], desconto / itens.length);
+  }
+
+  res.json({ ok: true, desconto });
+  await registrarLog(id, desconto);
+});
+```

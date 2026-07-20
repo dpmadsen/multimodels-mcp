@@ -1,5 +1,7 @@
 # Diário do projeto — multimodels-mcp
 
+> English version: [CHANGELOG.en.md](CHANGELOG.en.md)
+
 ## 2026-07-20 — Benchmark de delegação (198 execuções) e correção do endpoint da z.ai
 - Nova pasta `benchmark/` com o estudo completo de quais modelos podem receber tarefas delegadas: 6 provas × 11 modelos × 3 rodadas, tudo corrigido por testes automáticos que os modelos nunca viram. Inclui os enunciados, os corretores, todas as respostas, os relatórios e o kit pronto pra compartilhar no Reddit (imagens + texto em inglês).
 - Descobertas principais: a família do Codex (Sol, Terra e Luna) acertou 100% de tudo; o Luna custa 5 vezes menos que o Sol e empatou com ele; extração de dados em JSON funcionou perfeitamente em todos os modelos; e repetir cada prova 3 vezes mudou várias conclusões que uma rodada única tinha dado.

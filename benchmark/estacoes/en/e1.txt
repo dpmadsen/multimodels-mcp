@@ -1,0 +1,13 @@
+Write, in JavaScript (Node.js, CommonJS), a function `parseValor(texto)` that converts Brazilian-format money values to integer cents.
+
+Rules:
+- Receives a string; returns the value in cents (integer) or null if the input is invalid.
+- The "R$" prefix is optional, with or without a space after it. Whitespace at the ends of the string must be ignored.
+- Integer part: digits, with optional thousands dots. If dots are present, the grouping must be correct (first group of 1 to 3 digits, the rest exactly 3). E.g.: "1.234" is valid (= R$ 1,234.00); "1.23" is invalid.
+- Optional decimal part: a comma followed by 1 or 2 digits. "12,5" means 12 reais and 50 cents (= 1250).
+- US format is invalid ("1,234.56" → null). More than 2 decimal places is invalid ("12,345" → null).
+- Negative values are invalid. Empty input, null, undefined or non-string → null. The function must never throw.
+- Examples: "R$ 1.234,56" → 123456; "12,5" → 1250; "R$ 12" → 1200; "0" → 0.
+- End with: module.exports = { parseValor };
+
+Answer with a SINGLE ```javascript code block, no explanations.

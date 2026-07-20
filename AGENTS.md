@@ -1,5 +1,7 @@
 # Projeto: multimodels-mcp
 
+> English note: [AGENTS.en.md](AGENTS.en.md)
+
 ## O que é
 Servidor MCP que funciona como um "garçom" entre o Codex e outros modelos de IA: o Codex delega uma tarefa, o servidor processa com o modelo escolhido e devolve o resultado pro Codex avaliar. Modelos disponíveis: Codex (via assinatura do ChatGPT, pelo CLI `codex` já instalado no Mac), DeepSeek, z.ai e OpenRouter (via chaves de API) e modelos locais via LM Studio. Inclui um painel de controle local pra gerenciar chaves e habilitar/desabilitar modelos.
 

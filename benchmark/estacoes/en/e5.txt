@@ -1,0 +1,17 @@
+Compound task — deliver the three parts in a single response, in this order and with these exact headings:
+
+## PLANO
+(at most 10 lines: your approach)
+
+## CODIGO
+(a single ```javascript block with the complete module)
+
+## TESTES
+(a single ```javascript block with tests using node:test and node:assert, importing the module with require('./ratelimiter.js'))
+
+Module specification (Node.js, CommonJS, no external libraries):
+- Class `RateLimiter` exported with `module.exports = { RateLimiter };`
+- `new RateLimiter(limite, janelaMs, agora)`: call limit per sliding window of `janelaMs` milliseconds. The third parameter `agora` is a function returning the current time in ms (default: Date.now) — it must be injectable to allow tests with a fake clock.
+- Method `permitir(chave)`: records an attempt for the key and returns true if it is within the limit in the sliding window, false otherwise. Different keys have independent counters. A TRUE sliding window: a call only "expires" when it becomes older than janelaMs (not a fixed window that resets).
+- Denied calls (that returned false) do NOT count toward the limit.
+- Your tests must use a fake clock (controlled time variable) and cover: basic limit, independent keys, window expiry, and sliding behavior.
