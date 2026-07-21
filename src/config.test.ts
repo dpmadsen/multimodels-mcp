@@ -40,7 +40,7 @@ test("carrega o config/models.json real do projeto", () => {
   const rede = config.providers["lmstudio-rede"];
   assert.ok(rede, "provedor lmstudio-rede (outra máquina) deve existir");
   assert.ok(
-    rede.type === "openai-compat" && rede.baseUrl.startsWith("http://192.168.0.42"),
+    rede.type === "openai-compat" && rede.baseUrl.startsWith("http://192.168.0.61"),
     "lmstudio-rede deve apontar pra outra máquina da rede"
   );
 });

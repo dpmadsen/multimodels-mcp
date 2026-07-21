@@ -10,11 +10,9 @@ An evaluation of which models can safely receive tasks delegated by Claude (the 
 
 ## Folders
 
-- **`post-reddit/`** — the shareable kit: 3 infographics as PNGs, the HTMLs that generate them, and the write-up in English (`reddit-post.md`).
 - **`estacoes/`** — the 6 station prompts (`e1.txt` to `e6.txt`) in Portuguese, exactly as sent to the models. English reference translations in **`estacoes/en/`** (note: the benchmark RAN with the Portuguese ones).
 - **`corretores/`** — the automated graders (`grade-e*.js`). Run with `node corretores/grade-e1.js <path-to-response.js>`. Graders are language-independent.
 - **`respostas/`** — every collected response, raw and untranslated (they are the evidence): `respostas/` and `r23/` (rounds via delegate_task and sub-agents), `sol/`, `terra/`, `luna/` (Codex family via CLI, files named `e<station>-r<round>.txt`).
-- **`relatorios/`** — the HTML reports from earlier phases (in Portuguese) and the working scoreboard (`placar-parcial.md`, PT). The English equivalents of the final findings are the `post-reddit/` materials.
 
 ## Key findings (3-round version)
 

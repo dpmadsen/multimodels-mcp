@@ -10,7 +10,6 @@ Avaliação de quais modelos podem receber tarefas delegadas pelo Claude (orques
 
 ## Pastas
 
-- **`post-reddit/`** — o material pronto pra compartilhar: 3 infográficos em PNG, os HTMLs que os geraram, e o texto do post em inglês (`reddit-post.md`).
 - **`estacoes/`** — os 6 enunciados da prova (`e1.txt` a `e6.txt`), em português, exatamente como enviados aos modelos.
 - **`corretores/`** — os scripts de correção automática (`grade-e*.js`). Rodar com `node corretores/grade-e1.js <caminho-do-arquivo-de-resposta.js>`.
 - **`respostas/`** — todas as respostas coletadas: `respostas/` e `r23/` (rodadas via delegate_task e subagentes), `sol/`, `terra/` e `luna/` (família Codex via CLI, arquivos `e<estação>-r<rodada>.txt`).

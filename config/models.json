@@ -59,7 +59,7 @@
     "lmstudio-rede": {
       "type": "openai-compat",
       "label": "Celta",
-      "baseUrl": "http://192.168.0.42:4747/v1",
+      "baseUrl": "http://192.168.0.61:4747/v1",
       "enabled": true,
       "models": [
         "qwen/qwen3.6-35b-a3b",

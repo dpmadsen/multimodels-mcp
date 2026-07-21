@@ -50,9 +50,9 @@ Then ask Claude: *"use the list_models tool and show me the menu"*.
 
 The [`benchmark/`](benchmark/) folder contains a full evaluation run through this server: **6 stations × 11 models × 3 rounds = 198 runs**, graded by hidden test suites written *before* any model saw the tasks. Stations: build-from-spec, find-and-fix-a-bug, code review with seeded bugs, strict JSON extraction, a long compound deliverable, and honesty under missing context.
 
-![Scorecard](benchmark/post-reddit/benchmark-1-scorecard.png)
+![Scorecard](benchmark/imagens/benchmark-1-scorecard.png)
 
-Highlights (details and caveats in [`benchmark/post-reddit/reddit-post.md`](benchmark/post-reddit/reddit-post.md)):
+Highlights:
 
 - The GPT-5.6 Codex family (including Luna at $1/M input) went **54/54 perfect runs**, and verified 9/9 times that a phantom file didn't exist instead of hallucinating a fix.
 - Sonnet 5 and Haiku 4.5 failed the same cent-distribution contract in 2 of 3 rounds each — while every cheap delegate passed 9/9.
@@ -61,7 +61,7 @@ Highlights (details and caveats in [`benchmark/post-reddit/reddit-post.md`](benc
 
 Everything needed to reproduce is in the folder: station prompts (`benchmark/estacoes/`, in Portuguese), automated graders (`benchmark/corretores/`), and every raw response (`benchmark/respostas/`).
 
-![Costs](benchmark/post-reddit/benchmark-2-costs.png)
+![Costs](benchmark/imagens/benchmark-2-costs.png)
 
 ### Round 2 — a real task instead of synthetic stations
 
@@ -71,7 +71,7 @@ Seven implementers (Claude, GPT-5.6 and GLM lanes, agentic and text-only) built 
 
 Designed by the Reddit comment section: 13 lanes × 2 stations × 3 rounds, with reasoning effort controlled and a station built against the **actually installed zod v4**: [`benchmark/rodada3-esforco-e-cutoff/`](benchmark/rodada3-esforco-e-cutoff/). The cheap models didn't fail at reasoning — they failed at knowing what year it is (0/14 nine-for-nine on the trap, 18/18 on pure reasoning). Only two defenses exist: file access, or fresh training data.
 
-![Round 3 scorecard](benchmark/post-reddit/benchmark-5-round3-scorecard.png)
+![Round 3 scorecard](benchmark/imagens/benchmark-5-round3-scorecard.png)
 
 There's also an interactive decision report (in Portuguese) consolidating all three rounds: [`benchmark/relatorio-decisao.html`](benchmark/relatorio-decisao.html).
 

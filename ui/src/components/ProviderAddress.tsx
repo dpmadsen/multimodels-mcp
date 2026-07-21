@@ -12,12 +12,12 @@ interface Props {
   onError: (message: string) => void;
 }
 
-// "http://192.168.0.42:1234/v1" -> "192.168.0.42:1234"
+// "http://192.168.0.61:1234/v1" -> "192.168.0.61:1234"
 function shortAddress(baseUrl: string | null): string {
   return (baseUrl ?? "").replace(/^https?:\/\//, "").replace(/\/v1\/?$/, "");
 }
 
-// "192.168.0.42:5000" -> "http://192.168.0.42:5000/v1"
+// "192.168.0.61:5000" -> "http://192.168.0.61:5000/v1"
 function fullAddress(raw: string): string {
   let addr = raw.trim().replace(/\/+$/, "");
   if (!/^https?:\/\//.test(addr)) addr = `http://${addr}`;
@@ -62,7 +62,7 @@ export function ProviderAddress({ provider, onChanged, onError }: Props) {
             autoFocus
             value={value}
             maxLength={200}
-            placeholder="ip:porta (ex.: 192.168.0.42:1234)"
+            placeholder="ip:porta (ex.: 192.168.0.61:1234)"
             className="h-8 max-w-64 font-mono"
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={(e) => {

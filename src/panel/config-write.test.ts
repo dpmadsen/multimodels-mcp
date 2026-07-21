@@ -36,7 +36,7 @@ function fixture(): ModelsConfig {
       "lmstudio-rede": {
         type: "openai-compat",
         label: "LM Studio (rede)",
-        baseUrl: "http://192.168.0.42:1234/v1",
+        baseUrl: "http://192.168.0.61:1234/v1",
         enabled: true,
         models: [],
       },
