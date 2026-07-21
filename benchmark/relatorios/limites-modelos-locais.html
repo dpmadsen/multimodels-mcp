@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prova Difícil — Limites dos Modelos Locais</title>
+<style>
+:root{
+  --bg:#f6f7f9; --card:#ffffff; --ink:#1a1d23; --muted:#6b7280; --line:#e5e7eb;
+  --ok:#0d8a4f; --ok-bg:#e6f6ee; --bad:#c2312f; --bad-bg:#fdeceb; --warn:#9a6700; --warn-bg:#fff4d6;
+  --code-bg:#f3f4f6; --accent:#4f46e5;
+}
+@media (prefers-color-scheme: dark){
+  :root{
+    --bg:#111318; --card:#1a1d24; --ink:#e8eaf0; --muted:#9aa1ad; --line:#2a2e37;
+    --ok:#4ade80; --ok-bg:#12301f; --bad:#f87171; --bad-bg:#361a1a; --warn:#fbbf24; --warn-bg:#332a10;
+    --code-bg:#12141a; --accent:#8b8cf5;
+  }
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--ink);font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;line-height:1.55;padding:2rem 1rem 4rem}
+.wrap{max-width:860px;margin:0 auto}
+h1{font-size:1.6rem;margin-bottom:.3rem}
+.sub{color:var(--muted);margin-bottom:1.6rem;font-size:.95rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:1.4rem 1.5rem;margin-bottom:1.6rem}
+.card h2{font-size:1.1rem;margin-bottom:.8rem}
+.badge{font-size:.75rem;font-weight:600;padding:.25rem .65rem;border-radius:999px;white-space:nowrap;display:inline-block}
+.b-ok{background:var(--ok-bg);color:var(--ok)}
+.b-bad{background:var(--bad-bg);color:var(--bad)}
+.b-warn{background:var(--warn-bg);color:var(--warn)}
+h3{font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:1.1rem 0 .4rem}
+pre{background:var(--code-bg);border:1px solid var(--line);border-radius:10px;padding:1rem;overflow-x:auto;font-size:.8rem;line-height:1.5}
+code{font-family:'SF Mono',Menlo,Consolas,monospace}
+p.resp{font-size:.92rem;margin-bottom:.4rem}
+.nota{font-size:.85rem;color:var(--muted);border-left:3px solid var(--accent);padding:.4rem .8rem;margin-top:.8rem;background:var(--code-bg);border-radius:0 8px 8px 0}
+.falha{border-left-color:var(--bad)}
+.boa{border-left-color:var(--ok)}
+table{width:100%;border-collapse:collapse;font-size:.88rem;margin-bottom:.6rem}
+th,td{text-align:left;padding:.5rem .6rem;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-size:.75rem;text-transform:uppercase;letter-spacing:.05em}
+.tbl-wrap{overflow-x:auto}
+.duas{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+@media(max-width:640px){.duas{grid-template-columns:1fr}}
+.col h4{font-size:.85rem;margin-bottom:.4rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>🔬 Prova Difícil — procurando os limites dos modelos locais</h1>
+<p class="sub">20/07/2026 · 6 testes desenhados pra derrubar modelo pequeno: contagem de letras, matemática encadeada, lógica de restrições, código com pegadinhas de calendário, resistência à alucinação e "agulha no palheiro". Régua de comparação: DeepSeek v4 Flash (nuvem). Cobaias: Qwen 3.6 35B e Gemma 4 31B, rodando no Celta via rede local.</p>
+
+<div class="card">
+<h2>Placar geral</h2>
+<div class="tbl-wrap">
+<table>
+<tr><th>Teste</th><th>DeepSeek Flash (nuvem)</th><th>Qwen 3.6 (Celta)</th><th>Gemma 4 31B (Celta)</th></tr>
+<tr><td>1 · 5 palavras de 6 letras sem O</td><td>✅ 5/5 válidas</td><td>✅ 5/5 válidas</td><td rowspan="6" style="vertical-align:middle">⏸️ não testado<br><small>timeout — ver análise abaixo</small></td></tr>
+<tr><td>2 · Percentuais encadeados (R$ 1.298,00)</td><td>✅ exato</td><td>✅ exato</td></tr>
+<tr><td>3 · Lógica dos andares (solução única)</td><td>✅ correto</td><td>✅ correto</td></tr>
+<tr><td>4 · Código: dias entre datas (12 testes)</td><td>✅ 12/12</td><td>✅ 12/12</td></tr>
+<tr><td>5 · Função falsa shuffleSort()</td><td>✅ "não existe"</td><td>✅ "não existe"</td></tr>
+<tr><td>6 · Agulha no palheiro (7412)</td><td>✅ 7412</td><td>✅ 7412</td></tr>
+</table>
+</div>
+<div class="nota boa"><strong>A surpresa:</strong> o Qwen 3.6, que tinha reprovado na prova anterior por não entregar, gabaritou a prova difícil inteira — empatou com o modelo de nuvem. O segredo? Desta vez cada questão foi enviada separadinha, em vez de uma prova de 3 questões de uma vez.</div>
+</div>
+
+<div class="card">
+<h2>Teste 4 em detalhe — o mais difícil (código de datas)</h2>
+<p class="resp">Pedi uma função que conta dias entre duas datas "DD/MM/AAAA", devolvendo <code>null</code> pra data inválida — com armadilhas: 31/04 não existe, 29/02/2023 não existe, 1900 <em>não</em> é bissexto (regra dos séculos), e o construtor <code>Date</code> do JavaScript aceita datas erradas "rolando" pro mês seguinte.</p>
+<div class="duas">
+<div class="col">
+<h4>DeepSeek Flash — 12/12 <span class="badge b-ok">aprovado</span></h4>
+<pre><code>// Estratégia: tabela de dias por mês
+// + cálculo manual de ano bissexto
+const daysInMonth = [31,28,31,...];
+if (year % 400 === 0 ||
+   (year % 4 === 0 &amp;&amp; year % 100 !== 0)) {
+  daysInMonth[1] = 29;
+}
+if (day &lt; 1 || day &gt; daysInMonth[month-1])
+  return null;</code></pre>
+</div>
+<div class="col">
+<h4>Qwen 3.6 — 12/12 <span class="badge b-ok">aprovado</span></h4>
+<pre><code>// Estratégia mais elegante: cria a
+// data e confere se ela "rolou".
+// Se 31/04 virou 01/05, era inválida.
+const d = new Date(Date.UTC(yyyy, mm-1, dd));
+if (d.getUTCFullYear() !== yyyy ||
+    d.getUTCMonth() !== mm-1 ||
+    d.getUTCDate() !== dd) return null;</code></pre>
+</div>
+</div>
+<div class="nota">Os dois passaram nos 12 casos, incluindo os séculos (36.524 dias entre 1900 e 2000). A solução do Qwen usa a própria pegadinha do JavaScript como detector — código que muito programador júnior não escreveria.</div>
+</div>
+
+<div class="card">
+<h2>Onde estão, então, os limites do Qwen 3.6?</h2>
+<p class="resp">A prova difícil mostrou que o limite dele <strong>não é inteligência — é fôlego</strong>:</p>
+<h3>1 · Gasta tokens absurdos "pensando"</h3>
+<p class="resp">Pra calcular 3 porcentagens (4 linhas de resposta), ele consumiu <strong>12.152 tokens</strong> de raciocínio interno. O DeepSeek Flash resolveu o mesmo com 184. Isso significa respostas lentas e risco constante de estourar o limite de tamanho.</p>
+<h3>2 · Provas compostas quebram ele</h3>
+<p class="resp">Na prova anterior (3 questões num pedido só), ele entregou resposta cortada ou vazia em 3 tentativas. Hoje, com as mesmas dificuldades divididas em pedidos pequenos, gabaritou. <strong>Regra prática: uma tarefa por vez, bem focada.</strong></p>
+<h3>3 · Depende do Celta estar de pé</h3>
+<p class="resp">A primeira rodada de hoje falhou porque o servidor da rede estava fora; voltou e funcionou. Modelo local via rede = mais um elo que pode falhar.</p>
+</div>
+
+<div class="card">
+<h2>Gemma 4 31B — reprovado por WO (por enquanto) <span class="badge b-warn">fica pra depois</span></h2>
+<p class="resp">Todas as delegações estouraram o tempo de espera. A investigação direta mostrou o motivo provável:</p>
+<p class="resp">• O servidor do Celta responde normalmente e o modelo está lá no catálogo.<br>
+• Num pedido direto de aquecimento, ele respondeu — mas levou 12 segundos pra gerar meros 20 tokens.<br>
+• Descoberta: esse Gemma <strong>também é um modelo "pensador"</strong> (devolve o raciocínio num campo separado), e é um modelo <strong>denso</strong> de 31B — o computador inteiro trabalha em cada palavrinha. Já o Qwen 35B é do tipo "esperto" (MoE): só ativa uma fração de si por vez, por isso voa.</p>
+<div class="nota falha">Tradução: no hardware atual do Celta, o Gemma 31B pensa devagar demais pro tempo de espera do nosso garçom. Pra ele entrar na próxima prova, o caminho é aumentar o tempo de espera configurável do servidor multimodels (a tarefa de correção dos modelos pensadores, que já está rodando, ataca exatamente essa região do código) ou desligar o modo "pensador" dele no LM Studio.</div>
+</div>
+
+<div class="card">
+<h2>Veredito prático</h2>
+<p class="resp">✅ <strong>Qwen 3.6 no Celta subiu no conceito:</strong> pra tarefas focadas (uma função, um cálculo, uma análise), ele entrega qualidade de nuvem, de graça e sem internet. Só não peça provas compostas até a correção do servidor sair.</p>
+<p class="resp">⏱️ <strong>Gemma 4 31B:</strong> em compasso de espera — precisa da correção de timeout/pensadores pra ser avaliado com justiça.</p>
+<p class="resp">☁️ <strong>DeepSeek Flash segue sendo a régua:</strong> gabaritou tudo de novo, rápido e gastando pouco. É o plano B perfeito quando o Celta estiver desligado.</p>
+</div>
+
+</div>
+</body>
+</html>

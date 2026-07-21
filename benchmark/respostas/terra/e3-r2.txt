@@ -1,0 +1,60 @@
+- **Injeção SQL**
+
+  Trecho: `` `SELECT * FROM pedidos WHERE id = ${id}` ``
+
+  Na prática: alguém pode enviar um `id` malicioso e alterar a consulta ao banco, lendo ou afetando dados indevidos.
+
+  Correção: usar parâmetro da biblioteca do banco, por exemplo:
+
+  ```js
+  const pedido = await db.query(
+    'SELECT * FROM pedidos WHERE id = $1',
+    [id]
+  );
+  ```
+
+- **Requisição sem `cupom` quebra a rota**
+
+  Trecho: `cupom.toUpperCase()`
+
+  Na prática: se o cliente omitir `cupom`, enviar `null` ou um valor que não seja texto, a rota lança erro e responde 500.
+
+  Correção: validar antes de usar:
+
+  ```js
+  if (typeof cupom !== 'string') {
+    return res.status(400).json({ erro: 'Cupom inválido' });
+  }
+  ```
+
+- **Acessa um item que não existe**
+
+  Trecho: `for (let i = 0; i <= itens.length; i++)`
+
+  Na prática: na última volta, `itens[i]` é `undefined`. `aplicarDesconto` tende a quebrar ao tentar usar esse “item”, impedindo a conclusão do pedido.
+
+  Correção:
+
+  ```js
+  for (let i = 0; i < itens.length; i++) {
+    aplicarDesconto(itens[i], desconto / itens.length);
+  }
+  ```
+
+- **Cliente recebe sucesso antes de o registro terminar**
+
+  Trecho:
+
+  ```js
+  res.json({ ok: true, desconto });
+  await registrarLog(id, desconto);
+  ```
+
+  Na prática: o cliente recebe `ok: true` mesmo se o registro do log falhar. A falha depois da resposta também pode virar erro não tratado, dependendo da versão/configuração do Express.
+
+  Correção: concluir as operações necessárias antes da resposta e tratar a falha:
+
+  ```js
+  await registrarLog(id, desconto);
+  res.json({ ok: true, desconto });
+  ```

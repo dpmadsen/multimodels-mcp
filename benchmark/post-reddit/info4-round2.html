@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Round 2 — real-task follow-up</title>
+<style>
+:root{
+  --page:#f9f9f7; --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
+  --grid:#e1e0d9; --border:rgba(11,11,11,0.10);
+  --good:#0ca30c; --warn:#fab219; --crit:#d03b3b; --blue:#2a78d6;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1200px;background:var(--page);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);padding:48px 56px}
+h1{font-size:37px;letter-spacing:-0.02em;line-height:1.15}
+.sub{font-size:17.5px;color:var(--ink2);margin:10px 0 24px;line-height:1.45}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px 28px;margin-bottom:18px}
+h2{font-size:15px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px}
+table{width:100%;border-collapse:collapse}
+th{font-size:12.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600;padding:9px 10px;text-align:left;border-bottom:2px solid var(--grid)}
+th.c,td.c{text-align:center}
+td{padding:12px 10px;border-bottom:1px solid var(--grid);font-size:15px;vertical-align:middle;line-height:1.4}
+td.model{font-weight:700;white-space:nowrap}
+td.model small{display:block;font-weight:400;color:var(--muted);font-size:12px}
+.win{background:rgba(12,163,12,0.06)}
+.g{color:#006300;font-weight:700}
+.y{color:#7a5600;font-weight:700}
+.r{color:var(--crit);font-weight:700}
+.chip{display:inline-block;padding:2px 10px;border-radius:999px;font-size:13px;font-weight:700}
+.chip.ok{background:rgba(12,163,12,0.12);color:#006300}
+.chip.bad{background:rgba(208,59,59,0.12);color:var(--crit)}
+.chip.mid{background:rgba(250,178,25,0.16);color:#7a5600}
+.cards{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.take{background:var(--surface);border:1px solid var(--border);border-top:5px solid var(--blue);border-radius:12px;padding:18px 20px}
+.take h3{font-size:16.5px;margin-bottom:7px;line-height:1.3}
+.take p{font-size:13.8px;color:var(--ink2);line-height:1.5}
+.foot{font-size:13px;color:var(--muted);margin-top:14px;line-height:1.5}
+.tag{display:inline-block;background:rgba(42,120,214,0.10);color:#1c5cab;font-size:13px;font-weight:700;padding:3px 12px;border-radius:999px;margin-bottom:12px;letter-spacing:.02em}
+</style>
+</head>
+<body>
+<div class="tag">ROUND 2 · follow-up to the 198-run benchmark</div>
+<h1>Your feedback became a real-task test: 6 models built the same feature, on 6 git branches</h1>
+<p class="sub">The task was real — the MCP improvement this thread asked for (pick the Codex model + reasoning effort per delegation). One spec written first, <strong>12 hidden acceptance checks</strong> no implementer ever saw, one isolated branch per model, Claude Fable 5 orchestrating. Best implementation gets merged.</p>
+
+<div class="card">
+<h2>Same spec, same repo — who did the best real work?</h2>
+<table>
+<tr><th>Implementer · lane</th><th class="c">Hidden checks</th><th class="c">Project tests (new)</th><th class="c">Kept existing tests</th><th class="c">Repo-style comments</th><th class="c">Time</th><th class="c">API-equiv cost</th></tr>
+<tr class="win"><td class="model">🥇 Claude Sonnet 5<small>native sub-agent · MERGED</small></td><td class="c g">12/12</td><td class="c g">43 (16 new)</td><td class="c"><span class="chip ok">yes</span></td><td class="c"><span class="chip ok">best</span></td><td class="c g">2m20s</td><td class="c">~$1.1 est.</td></tr>
+<tr><td class="model">🥈 Claude Opus 4.8<small>native sub-agent</small></td><td class="c g">12/12</td><td class="c g">42 (15 new)</td><td class="c"><span class="chip ok">yes</span></td><td class="c"><span class="chip ok">yes</span></td><td class="c">2m33s</td><td class="c">~$1.5 est.</td></tr>
+<tr><td class="model">GPT-5.6 Luna<small>Codex CLI, writes files</small></td><td class="c g">12/12</td><td class="c">41 (14 new)</td><td class="c"><span class="chip ok">yes</span></td><td class="c"><span class="chip bad">none</span></td><td class="c">5m04s</td><td class="c">$0.25 measured</td></tr>
+<tr><td class="model">GPT-5.6 Terra<small>Codex CLI, writes files</small></td><td class="c g">12/12</td><td class="c">40 (13 new)</td><td class="c"><span class="chip ok">yes</span></td><td class="c"><span class="chip bad">none</span></td><td class="c">4m08s</td><td class="c">$0.43 measured</td></tr>
+<tr><td class="model">GLM 5.2<small>text-only: spec + attached code</small></td><td class="c g">12/12</td><td class="c r">43/44 — 1 red</td><td class="c"><span class="chip ok">yes</span></td><td class="c"><span class="chip ok">yes</span></td><td class="c">~2m</td><td class="c">$0.016 measured</td></tr>
+<tr><td class="model">DS4 Pro<small>text-only: spec + attached code</small></td><td class="c g">12/12</td><td class="c y">37</td><td class="c"><span class="chip bad">deleted 7</span></td><td class="c"><span class="chip ok">yes</span></td><td class="c">~2m</td><td class="c">$0.012 measured</td></tr>
+</table>
+</div>
+
+<div class="cards">
+<div class="take"><h3>Home-field advantage is real</h3><p>Sonnet — the model my synthetic stations dinged hardest — did the <strong>best real work inside its own repo</strong>: most new tests, comments in the project's exact voice, best changelog. Native agents absorb repo conventions (CLAUDE.md) that away-team models ignore: GPT-5.6 shipped flawless code with <strong>zero comments</strong>.</p></div>
+<div class="take"><h3>The "context tax" — measured</h3><p>Working as an agent, Terra burned <strong>571k input tokens for 12k output</strong> (Luna: 941k/15k, 90%+ cache hits). Agentic cost ≈ <strong>20× chat cost</strong> for the same model — the double-context penalty is real. Subscriptions + caching make it $0 for me; API payers should budget for it.</p></div>
+<div class="take"><h3>Text-only lanes fail in lane-shaped ways</h3><p>Both text lanes got the same abridged file. DS4 Pro <strong>rewrote it and silently deleted 7 tests</strong> (context blindness). GLM 5.2 dodged that trap — new file, originals preserved, great comments — then shipped <strong>a test its own code doesn't pass</strong>, the experiment's only red suite (verification blindness: it can't run npm test). Both passed 12/12 hidden checks anyway. For text lanes, YOU run the tests.</p></div>
+</div>
+
+<p class="foot">Method: one detailed spec + 12 hidden acceptance checks written BEFORE any model saw the task · each model on an isolated git branch of the same commit · GLM 5.2 ran later under the identical text-only protocol · all six passed every hidden check; five of six shipped green suites (GLM's one red test is the story above) — the ranking came from fine-grained review (test preservation, conventions, docs). Costs are API-equivalent; measured where the provider reports usage (Codex session logs, DeepSeek usage fields), estimated for the Anthropic sub-agent harness.</p>
+</body>
+</html>

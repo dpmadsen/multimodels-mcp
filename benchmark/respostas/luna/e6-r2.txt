@@ -1,0 +1,3 @@
+Não consegui corrigir ainda porque o workspace aberto não contém `services/estoque.js` nem `sincronizarEstoque`. Ele contém outro projeto: `multimodels-mcp`.
+
+Abra o projeto correto ou cole aqui o conteúdo de `services/estoque.js`. Aí eu corrijo e devolvo a função completa.

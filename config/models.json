@@ -1,0 +1,73 @@
+{
+  "providers": {
+    "codex": {
+      "type": "codex-cli",
+      "label": "Codex (assinatura ChatGPT)",
+      "enabled": true,
+      "models": [
+        "gpt-5.6-sol",
+        "gpt-5.6-terra",
+        "gpt-5.6-luna"
+      ]
+    },
+    "deepseek": {
+      "type": "openai-compat",
+      "label": "DeepSeek",
+      "baseUrl": "https://api.deepseek.com/v1",
+      "envKey": "DEEPSEEK_API_KEY",
+      "enabled": true,
+      "models": []
+    },
+    "zai": {
+      "type": "openai-compat",
+      "label": "z.ai",
+      "baseUrl": "https://api.z.ai/api/coding/paas/v4",
+      "envKey": "ZAI_API_KEY",
+      "enabled": true,
+      "models": [
+        "glm-5.2"
+      ],
+      "maxConcurrent": 1,
+      "timeoutMs": 900000,
+      "effortStyle": "openai"
+    },
+    "openrouter": {
+      "type": "openai-compat",
+      "label": "OpenRouter",
+      "baseUrl": "https://openrouter.ai/api/v1",
+      "envKey": "OPENROUTER_API_KEY",
+      "enabled": true,
+      "models": [
+        "deepseek/deepseek-v4-flash",
+        "deepseek/deepseek-v4-pro",
+        "x-ai/grok-4.5"
+      ],
+      "effortStyle": "openrouter"
+    },
+    "lmstudio": {
+      "type": "openai-compat",
+      "label": "LM Studio (local)",
+      "baseUrl": "http://localhost:1234/v1",
+      "enabled": false,
+      "models": [
+        "google/gemma-4-26b-a4b",
+        "qwen/qwen3.6-35b-a3b"
+      ],
+      "maxConcurrent": 1,
+      "timeoutMs": 1800000
+    },
+    "lmstudio-rede": {
+      "type": "openai-compat",
+      "label": "Celta",
+      "baseUrl": "http://192.168.0.42:4747/v1",
+      "enabled": true,
+      "models": [
+        "qwen/qwen3.6-35b-a3b",
+        "google/gemma-4-31b",
+        "qwen/qwen3.6-27b"
+      ],
+      "maxConcurrent": 1,
+      "timeoutMs": 1800000
+    }
+  }
+}

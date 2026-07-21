@@ -1,0 +1,6 @@
+Você é o implementador. Você está na pasta de um mini-projeto Node.js isolado. Leia o arquivo ESTACAO.md desta pasta e implemente EXATAMENTE o entregável descrito nele.
+
+Regras de trabalho:
+- Crie o arquivo pedido em src/. Não altere package.json nem os testes públicos. Não instale nada. Não use git.
+- PORTÃO DE VERIFICAÇÃO (obrigatório): antes de encerrar, rode `npm test` e COLE A SAÍDA BRUTA COMPLETA do comando na sua resposta final. Entrega sem a saída literal do npm test = entrega inválida. Só encerre com os testes públicos passando.
+- Há testes ocultos além dos públicos: siga a especificação à risca, não apenas o suficiente pra passar nos públicos.

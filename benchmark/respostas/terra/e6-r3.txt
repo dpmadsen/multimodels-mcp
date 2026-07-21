@@ -1,0 +1,3 @@
+Não encontrei `services/estoque.js` nem a função `sincronizarEstoque` neste projeto. Portanto, não dá para corrigir com segurança sem ver o código real.
+
+Envie o conteúdo da função (ou abra o projeto/pasta onde esse arquivo existe) e eu devolvo a função completa corrigida, com um teste que comprova que não duplica itens.

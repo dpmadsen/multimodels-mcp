@@ -1,0 +1,1 @@
+These are English reference translations of the station prompts. The benchmark itself ran with the Portuguese originals in the parent folder — if you want to compare results against ours, use those; if you want to test the language variable, use these.

@@ -1,0 +1,8 @@
+{
+  "clientes": [
+    {"nome": "Marina Souza","email": "marina.souza@gmail.com","valor_centavos": 124050,"vencimento": "2026-08-05"},
+    {"nome": "Seu Joaquim","email": null,"valor_centavos": 120000,"vencimento": "2026-08-15"},
+    {"nome": "Vertex Ltda","email": "contato@vertex.com.br","valor_centavos": 399999,"vencimento": "2026-09-01"}
+  ],
+  "total_centavos": 644049
+}

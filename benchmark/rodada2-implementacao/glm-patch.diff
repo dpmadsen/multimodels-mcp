@@ -1,0 +1,387 @@
+From ebf211d963e11871210cdfd31d4442c2af59c7db Mon Sep 17 00:00:00 2001
+From: Daniel Madsen <user@example.com>
+Date: Mon, 20 Jul 2026 20:22:49 -0300
+Subject: [PATCH] =?UTF-8?q?Rodada=202=20(adendo):=20escolha=20de=20modelo/?=
+ =?UTF-8?q?esfor=C3=A7o=20do=20Codex=20=E2=80=94=20implementado=20por=20GL?=
+ =?UTF-8?q?M=205.2?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+---
+ CHANGELOG.md                |  7 ++++
+ config/models.json          |  7 +++-
+ src/config.codex.test.ts    | 73 +++++++++++++++++++++++++++++++++++++
+ src/config.ts               | 23 ++++++++++++
+ src/providers/codex.test.ts | 70 +++++++++++++++++++++++++++++++++++
+ src/providers/codex.ts      | 62 +++++++++++++++++++++++++++----
+ src/tools/delegate.ts       | 15 ++++++--
+ src/tools/list-models.ts    |  5 +++
+ 8 files changed, 249 insertions(+), 13 deletions(-)
+ create mode 100644 src/config.codex.test.ts
+ create mode 100644 src/providers/codex.test.ts
+
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index ccbf8d4..91aaea2 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -2,6 +2,13 @@
+ 
+ > English version: [CHANGELOG.en.md](CHANGELOG.en.md)
+ 
++## 2026-07-20 — Escolha de modelo e esforço no Codex
++- Agora dá pra escolher qual versão do GPT-5.6 o Codex usa (sol, terra ou luna) ao chamar a ferramenta de delegação — basta usar o id mostrado na lista de modelos.
++- Também dá pra dizer quanto o modelo deve "pensar" antes de responder: pouco (low), médio (medium), bastante (high) ou muito (xhigh).
++- O luna custa cinco vezes menos que o sol com a mesma qualidade em tarefas técnicas; agora conseguimos aproveitar isso sem mexer em configuração.
++- A lista de modelos passou a mostrar uma linha para cada versão do Codex, além da linha do modelo padrão.
++- Quem usava só o id "codex" segue funcionando do mesmo jeito de antes — sem mudança.
++
+ ## 2026-07-20 — Benchmark de delegação (198 execuções) e correção do endpoint da z.ai
+ - Nova pasta `benchmark/` com o estudo completo de quais modelos podem receber tarefas delegadas: 6 provas × 11 modelos × 3 rodadas, tudo corrigido por testes automáticos que os modelos nunca viram. Inclui os enunciados, os corretores, todas as respostas, os relatórios e o kit pronto pra compartilhar no Reddit (imagens + texto em inglês).
+ - Descobertas principais: a família do Codex (Sol, Terra e Luna) acertou 100% de tudo; o Luna custa 5 vezes menos que o Sol e empatou com ele; extração de dados em JSON funcionou perfeitamente em todos os modelos; e repetir cada prova 3 vezes mudou várias conclusões que uma rodada única tinha dado.
+diff --git a/config/models.json b/config/models.json
+index 4a3945e..50258a3 100644
+--- a/config/models.json
++++ b/config/models.json
+@@ -3,7 +3,12 @@
+     "codex": {
+       "type": "codex-cli",
+       "label": "Codex (assinatura ChatGPT)",
+-      "enabled": true
++      "enabled": true,
++      "models": [
++        "gpt-5.6-sol",
++        "gpt-5.6-terra",
++        "gpt-5.6-luna"
++      ]
+     },
+     "deepseek": {
+       "type": "openai-compat",
+diff --git a/src/config.codex.test.ts b/src/config.codex.test.ts
+new file mode 100644
+index 0000000..5031836
+--- /dev/null
++++ b/src/config.codex.test.ts
+@@ -0,0 +1,73 @@
++// Testes da resolução de ids do provedor Codex (formato "codex" e "codex:<modelo>").
++// Usam uma configuração de mentira, isolada do config/models.json real.
++import { test } from "node:test";
++import assert from "node:assert/strict";
++import { resolveModel, type ModelsConfig } from "./config.js";
++
++const fixtureComModelos: ModelsConfig = {
++  providers: {
++    codex: {
++      type: "codex-cli",
++      label: "Codex (assinatura ChatGPT)",
++      enabled: true,
++      models: ["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"],
++    },
++  },
++};
++
++const fixtureSemModelos: ModelsConfig = {
++  providers: {
++    codex: { type: "codex-cli", label: "Codex", enabled: true },
++  },
++};
++
++test("'codex' segue funcionando sem nome de modelo (compatibilidade)", () => {
++  const ref = resolveModel(fixtureComModelos, "codex");
++  assert.equal(ref.provider.type, "codex-cli");
++  assert.equal(ref.model, undefined);
++});
++
++test("'codex:<modelo>' válido devolve o modelo preenchido", () => {
++  const ref = resolveModel(fixtureComModelos, "codex:gpt-5.6-luna");
++  assert.equal(ref.provider.type, "codex-cli");
++  assert.equal(ref.model, "gpt-5.6-luna");
++});
++
++test("'codex:<modelo>' fora da lista gera erro amigável citando os habilitados", () => {
++  assert.throws(
++    () => resolveModel(fixtureComModelos, "codex:gpt-4"),
++    (err: unknown) => {
++      assert.ok(err instanceof Error);
++      const msg = err.message;
++      assert.ok(msg.includes("gpt-4"), "cita o modelo rejeitado");
++      assert.ok(msg.includes("gpt-5.6-sol"));
++      assert.ok(msg.includes("gpt-5.6-terra"));
++      assert.ok(msg.includes("gpt-5.6-luna"));
++      return true;
++    }
++  );
++});
++
++test("'codex:<modelo>' com lista vazia explica que nenhum modelo está habilitado", () => {
++  assert.throws(
++    () => resolveModel(fixtureSemModelos, "codex:gpt-5.6-luna"),
++    (err: unknown) => {
++      assert.ok(err instanceof Error);
++      const msg = err.message;
++      assert.ok(/nenhum modelo explícito/i.test(msg), "explica ausência de modelos explícitos");
++      assert.ok(/modelo padrão/i.test(msg), "menciona o modelo padrão do CLI");
++      return true;
++    }
++  );
++});
++
++test("aceita modelo com dois-pontos (id normalizado via join)", () => {
++  // Garante que split/join preserva modelos com ":" no nome, se houver.
++  const fixture: ModelsConfig = {
++    providers: {
++      codex: { type: "codex-cli", label: "Codex", enabled: true, models: ["familia:variante"] },
++    },
++  };
++  const ref = resolveModel(fixture, "codex:familia:variante");
++  assert.equal(ref.model, "familia:variante");
++});
+diff --git a/src/config.ts b/src/config.ts
+index 9b95f61..44f1bd2 100644
+--- a/src/config.ts
++++ b/src/config.ts
+@@ -20,6 +20,10 @@ export interface CodexProvider {
+   type: "codex-cli";
+   label: string;
+   enabled: boolean;
++  // Modelos da família Codex habilitados para escolha explícita via
++  // "codex:<modelo>". Se ficar vazio, só o id "codex" (modelo padrão do
++  // CLI) é aceito — mantém o comportamento histórico.
++  models?: string[];
+ }
+ 
+ export type Provider = OpenAICompatProvider | CodexProvider;
+@@ -83,5 +87,24 @@ export function resolveModel(config: ModelsConfig, id: string): ModelRef {
+       );
+     }
+   }
++  if (provider.type === "codex-cli") {
++    // "codex" puro mantém o comportamento antigo: usa o modelo padrão do CLI.
++    // "codex:<modelo>" exige que a lista models exista e contenha o modelo.
++    if (model !== undefined) {
++      const allowed = provider.models ?? [];
++      if (allowed.length === 0) {
++        throw new Error(
++          `Este Codex não tem modelos explícitos habilitados. ` +
++            `Use apenas "codex" (modelo padrão do CLI) ou adicione modelos ao campo "models" do provedor no config/models.json.`
++        );
++      }
++      if (!allowed.includes(model)) {
++        throw new Error(
++          `O modelo "${model}" não está habilitado para ${provider.label}. ` +
++            `Habilitados: ${allowed.join(", ")}. Use a ferramenta list_models para ver os ids válidos.`
++        );
++      }
++    }
++  }
+   return { providerId, provider, model };
+ }
+diff --git a/src/providers/codex.test.ts b/src/providers/codex.test.ts
+new file mode 100644
+index 0000000..50aecbf
+--- /dev/null
++++ b/src/providers/codex.test.ts
+@@ -0,0 +1,70 @@
++// Testes da montagem de argumentos do CLI do Codex.
++// Cobrem os caminhos felizes (com/sem modelo, com/sem esforço) e os de erro
++// (esforço inválido). Não chamam o `codex` de verdade: testam só buildCodexArgs,
++// que é uma função pura.
++import { test } from "node:test";
++import assert from "node:assert/strict";
++import { buildCodexArgs } from "./codex.js";
++
++test("monta argumentos básicos quando modelo e esforço não vêm", () => {
++  const args = buildCodexArgs("faça algo", { outFile: "/tmp/out.txt" });
++  assert.deepEqual(args, [
++    "exec",
++    "--skip-git-repo-check",
++    "--sandbox", "read-only",
++    "--output-last-message", "/tmp/out.txt",
++    "faça algo",
++  ]);
++});
++
++test("inclui -m <modelo> antes da tarefa quando modelo é informado", () => {
++  const args = buildCodexArgs("faça algo", { outFile: "/tmp/out.txt", model: "gpt-5.6-luna" });
++  assert.deepEqual(args, [
++    "exec",
++    "--skip-git-repo-check",
++    "--sandbox", "read-only",
++    "--output-last-message", "/tmp/out.txt",
++    "-m", "gpt-5.6-luna",
++    "faça algo",
++  ]);
++});
++
++test("inclui -c model_reasoning_effort=<effort> para esforço válido", () => {
++  for (const effort of ["low", "medium", "high", "xhigh"] as const) {
++    const args = buildCodexArgs("tarefa", { outFile: "/tmp/o.txt", effort });
++    assert.ok(args.includes("-c"), `esperava -c para effort=${effort}`);
++    assert.ok(args.includes(`model_reasoning_effort=${effort}`), `esperava config para effort=${effort}`);
++    // A tarefa continua sendo o último argumento.
++    assert.equal(args[args.length - 1], "tarefa");
++  }
++});
++
++test("aceita modelo e esforço juntos, ambos antes da tarefa", () => {
++  const args = buildCodexArgs("tarefa", {
++    outFile: "/tmp/o.txt",
++    model: "gpt-5.6-sol",
++    effort: "high",
++  });
++  const taskIndex = args.indexOf("tarefa");
++  const modelIndex = args.indexOf("-m");
++  const effortIndex = args.indexOf("-c");
++  assert.ok(taskIndex > -1 && modelIndex > -1 && effortIndex > -1);
++  assert.ok(modelIndex < taskIndex, "modelo deve vir antes da tarefa");
++  assert.ok(effortIndex < taskIndex, "esforço deve vir antes da tarefa");
++});
++
++test("lança erro amigável para esforço inválido, listando os válidos", () => {
++  assert.throws(
++    () => buildCodexArgs("tarefa", { outFile: "/tmp/o.txt", effort: "turbo" }),
++    (err: unknown) => {
++      assert.ok(err instanceof Error, "deve ser um Error");
++      const msg = err.message;
++      assert.ok(msg.includes("turbo"), "mensagem cita o valor inválido");
++      assert.ok(msg.includes("low"), "lista low");
++      assert.ok(msg.includes("medium"), "lista medium");
++      assert.ok(msg.includes("high"), "lista high");
++      assert.ok(msg.includes("xhigh"), "lista xhigh");
++      return true;
++    }
++  );
++});
+diff --git a/src/providers/codex.ts b/src/providers/codex.ts
+index c10d36b..ca51e79 100644
+--- a/src/providers/codex.ts
++++ b/src/providers/codex.ts
+@@ -8,20 +8,66 @@ import { join } from "node:path";
+ 
+ const TIMEOUT_MS = 10 * 60 * 1000;
+ 
+-export async function runCodex(task: string, workdir?: string): Promise<string> {
++// Valores aceitos pelo Codex para esforço de raciocínio.
++const VALID_EFFORTS = ["low", "medium", "high", "xhigh"] as const;
++type Effort = (typeof VALID_EFFORTS)[number];
++
++function isEffort(value: string): value is Effort {
++  return (VALID_EFFORTS as readonly string[]).includes(value);
++}
++
++/**
++ * Monta os argumentos passados ao `codex` (sem incluir o próprio executável).
++ * Função pura — fácil de testar isoladamente. A tarefa sempre vem por último,
++ * porque o CLI recebe a instrução como argumento posicional final.
++ */
++export function buildCodexArgs(
++  task: string,
++  opts: { outFile: string; model?: string; effort?: string }
++): string[] {
++  // Argumentos fixos de hoje em dia — mantemos exatamente estes.
++  const args: string[] = [
++    "exec",
++    "--skip-git-repo-check",
++    "--sandbox", "read-only",
++    "--output-last-message", opts.outFile,
++  ];
++
++  // Modelo da família GPT-5.6 (sol/terra/luna). Vai antes da tarefa.
++  if (opts.model !== undefined) {
++    args.push("-m", opts.model);
++  }
++
++  // Esforço de raciocínio. Validamos aqui para falhar cedo, com mensagem
++  // amigável, antes mesmo de chamar o CLI.
++  if (opts.effort !== undefined) {
++    if (!isEffort(opts.effort)) {
++      throw new Error(
++        `Esforço de raciocínio inválido: "${opts.effort}". ` +
++          `Use um destes: ${VALID_EFFORTS.join(", ")}.`
++      );
++    }
++    args.push("-c", `model_reasoning_effort=${opts.effort}`);
++  }
++
++  // A instrução (tarefa) é sempre o último argumento posicional.
++  args.push(task);
++  return args;
++}
++
++export async function runCodex(
++  task: string,
++  workdir?: string,
++  model?: string,
++  effort?: string
++): Promise<string> {
+   const scratch = await mkdtemp(join(tmpdir(), "multimodels-codex-"));
+   const outFile = join(scratch, "last-message.txt");
+   try {
+     await new Promise<void>((resolve, reject) => {
+       const child = spawn(
+         "codex",
+-        [
+-          "exec",
+-          "--skip-git-repo-check",
+-          "--sandbox", "read-only",
+-          "--output-last-message", outFile,
+-          task,
+-        ],
++        buildCodexArgs(task, { outFile, model, effort }),
+         {
+           cwd: workdir ?? process.cwd(),
+           // stdin fechado ("ignore"): sem isso o codex fica esperando
+diff --git a/src/tools/delegate.ts b/src/tools/delegate.ts
+index f22f8f7..94f0faa 100644
+--- a/src/tools/delegate.ts
++++ b/src/tools/delegate.ts
+@@ -27,17 +27,24 @@ export function registerDelegate(server: McpServer, getConfig: () => ModelsConfi
+           .string()
+           .optional()
+           .describe("Somente para o codex: pasta do projeto em que ele pode ler arquivos (caminho absoluto)"),
++        effort: z
++          .string()
++          .optional()
++          .describe("Somente para o codex: esforço de raciocínio do modelo — um entre 'low', 'medium', 'high' ou 'xhigh'"),
+       },
+       annotations: { readOnlyHint: true, openWorldHint: true },
+     },
+-    async ({ model, task, workdir }) => {
++    async ({ model: modelId, task, workdir, effort }) => {
+       try {
+-        const ref = resolveModel(getConfig(), model);
++        const ref = resolveModel(getConfig(), modelId);
+         let text: string;
+         let footer: string;
+         if (ref.provider.type === "codex-cli") {
+-          text = await runCodex(task, workdir);
+-          footer = `[resposta de: ${ref.provider.label}]`;
++          text = await runCodex(task, workdir, ref.model, effort);
++          const parts = [ref.provider.label];
++          if (ref.model) parts.push(ref.model);
++          if (effort) parts.push(`esforço: ${effort}`);
++          footer = `[resposta de: ${parts.join(" · ")}]`;
+         } else {
+           const result = await chatCompletion(ref.provider, ref.model!, task);
+           text = result.truncated
+diff --git a/src/tools/list-models.ts b/src/tools/list-models.ts
+index c0bc88c..7505e2f 100644
+--- a/src/tools/list-models.ts
++++ b/src/tools/list-models.ts
+@@ -19,7 +19,12 @@ export function registerListModels(server: McpServer, getConfig: () => ModelsCon
+       for (const [providerId, provider] of Object.entries(config.providers)) {
+         if (!provider.enabled) continue;
+         if (provider.type === "codex-cli") {
++          // O id "codex" sempre existe: roda com o modelo padrão do CLI.
+           lines.push(`- id: codex — ${provider.label} [CLI local, sem chave]`);
++          // Um id por modelo habilitado (ex.: codex:gpt-5.6-luna).
++          for (const model of provider.models ?? []) {
++            lines.push(`- id: codex:${model} — ${provider.label} [CLI local, sem chave]`);
++          }
+           continue;
+         }
+         const status = provider.envKey
+-- 
+2.50.1 (Apple Git-155)
+

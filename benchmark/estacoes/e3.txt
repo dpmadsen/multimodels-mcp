@@ -1,0 +1,32 @@
+Revise este trecho de uma API Node/Express que está prestes a ir pra produção. Liste APENAS os problemas reais que comprometem produção (segurança, quebra em execução, lógica errada). Para cada problema: cite o trecho, diga o que acontece de errado na prática, e proponha a correção. NÃO liste questões de estilo ou preferência pessoal — alarme falso conta contra o revisor. Seja direto.
+
+```javascript
+const LIMITE_DESCONTO = 5000;
+
+app.post('/api/pedidos/:id/desconto', async (req, res) => {
+  const { id } = req.params;
+  const { cupom } = req.body;
+
+  const pedido = await db.query(
+    `SELECT * FROM pedidos WHERE id = ${id}`
+  );
+  if (!pedido) return res.status(404).json({ erro: 'Pedido não encontrado' });
+
+  const cupons = await carregarCupons();
+  const valido = cupons.find(c => c.codigo === cupom.toUpperCase());
+
+  let desconto = 0;
+  if (valido) {
+    desconto = pedido.total * valido.percentual / 100;
+    if (desconto > LIMITE_DESCONTO) desconto = LIMITE_DESCONTO;
+  }
+
+  const itens = pedido.itens;
+  for (let i = 0; i <= itens.length; i++) {
+    aplicarDesconto(itens[i], desconto / itens.length);
+  }
+
+  res.json({ ok: true, desconto });
+  await registrarLog(id, desconto);
+});
+```

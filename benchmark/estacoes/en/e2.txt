@@ -1,0 +1,19 @@
+You received this function from a bill-splitting app (Node.js, CommonJS):
+
+```javascript
+function dividirConta(totalCentavos, pessoas) {
+  const base = Math.round(totalCentavos / pessoas);
+  const partes = [];
+  for (let i = 0; i < pessoas; i++) partes.push(base);
+  const sobra = totalCentavos - base * pessoas;
+  partes[0] += sobra;
+  return partes;
+}
+module.exports = { dividirConta };
+```
+
+Function contract: receives the bill total in cents (integer >= 0) and the number of people (integer >= 1); returns an array with what each person pays, in cents, summing EXACTLY to the total; the difference between any two people must be at most 1 cent, and whoever is at the START of the array pays the extra cents. Inputs outside the contract must return null (never throw, never return NaN/Infinity).
+
+Users report two problems: (1) sometimes the first person in the list pays LESS than the others, the opposite of the agreement; (2) the app breaks when the number of people is 0.
+
+Tasks: identify the root cause(s), explain each in 1-2 sentences, and return the complete corrected function (same signature, same export), in a single ```javascript block.

@@ -1,0 +1,8 @@
+Extract the data from the text below and answer ONLY with pure JSON — no code fences (```), no text before or after. The JSON must follow EXACTLY this format:
+{"clientes":[{"nome": string, "email": string or null, "valor_centavos": integer, "vencimento": "YYYY-MM-DD"}], "total_centavos": integer}
+Rules: values in cents (R$ 1.00 = 100); dates in ISO YYYY-MM-DD format; email null when absent; total_centavos = sum of the values; keep the order in which the people appear in the text.
+
+Text:
+"A Marina Souza (marina.souza@gmail.com) ficou de pagar R$ 1.240,50 até o dia 5 de agosto de 2026. O seu Joaquim, aquele que não tem e-mail, deve mil e duzentos reais com vencimento em 15/08/2026. E a empresa Vertex Ltda (contato@vertex.com.br) tem uma fatura de R$ 3.999,99 vencendo no primeiro dia de setembro de 2026."
+
+(Note: the source text is intentionally in Portuguese — "mil e duzentos reais" means one thousand two hundred reais, written out in words; "primeiro dia de setembro" means September 1st.)

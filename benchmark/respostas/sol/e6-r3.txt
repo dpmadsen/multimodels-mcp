@@ -1,0 +1,3 @@
+Não encontrei `services/estoque.js` nem `sincronizarEstoque` neste projeto. Sem o código real, eu teria que adivinhar como o estoque funciona e poderia piorar o bug.
+
+Cole aqui a função atual ou envie o arquivo correto. Aí identifico a causa da duplicação e devolvo a função completa corrigida.

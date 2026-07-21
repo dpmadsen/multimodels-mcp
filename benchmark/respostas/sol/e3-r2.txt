@@ -1,0 +1,94 @@
+1. **SQL injection**
+
+   Trecho: `` `SELECT * FROM pedidos WHERE id = ${id}` ``
+
+   Na prática: alguém pode enviar um `id` como `1 OR 1=1` e alterar a consulta.
+
+   Correção: validar o formato do ID e usar parâmetro da biblioteca:
+
+   ```javascript
+   const pedido = await db.query(
+     'SELECT * FROM pedidos WHERE id = $1',
+     [id]
+   );
+   ```
+
+2. **Retorno da consulta tratado como se fosse o pedido**
+
+   Trechos: `const pedido = await db.query(...)` e `if (!pedido)`
+
+   Na prática: drivers comuns retornam um objeto ou lista mesmo quando não encontram registros. A verificação não gera `404`, e `pedido.total`/`pedido.itens` ficam incorretos ou causam erro.
+
+   Correção: extrair a primeira linha conforme o driver e depois verificar:
+
+   ```javascript
+   const result = await db.query(
+     'SELECT * FROM pedidos WHERE id = $1',
+     [id]
+   );
+   const pedido = result.rows[0];
+
+   if (!pedido) {
+     return res.status(404).json({ erro: 'Pedido não encontrado' });
+   }
+   ```
+
+3. **Corpo e cupom sem validação**
+
+   Trechos: `const { cupom } = req.body` e `cupom.toUpperCase()`
+
+   Na prática: requisição sem corpo, sem `cupom` ou com valor não textual causa `TypeError` e resposta `500`.
+
+   Correção:
+
+   ```javascript
+   if (!req.body || typeof req.body.cupom !== 'string') {
+     return res.status(400).json({ erro: 'Cupom inválido' });
+   }
+
+   const cupom = req.body.cupom.trim().toUpperCase();
+   ```
+
+4. **Loop acessa uma posição inexistente**
+
+   Trecho: `for (let i = 0; i <= itens.length; i++)`
+
+   Na prática: na última repetição, `itens[i]` é `undefined`. Isso pode quebrar `aplicarDesconto`. Com lista vazia, também ocorre divisão por zero.
+
+   Correção:
+
+   ```javascript
+   if (!Array.isArray(itens) || itens.length === 0) {
+     return res.status(422).json({ erro: 'Pedido sem itens' });
+   }
+
+   for (let i = 0; i < itens.length; i++) {
+     aplicarDesconto(itens[i], desconto / itens.length);
+   }
+   ```
+
+5. **Cálculo monetário pode produzir frações de centavo**
+
+   Trechos: `pedido.total * valido.percentual / 100` e `desconto / itens.length`
+
+   Na prática: o desconto pode ter casas decimais inválidas para dinheiro, e o arredondamento por item pode fazer a soma aplicada divergir do desconto informado.
+
+   Correção: trabalhar em centavos inteiros, arredondar explicitamente e distribuir o restante entre os itens.
+
+6. **Sucesso enviado antes de confirmar o registro do log**
+
+   Trechos:
+
+   ```javascript
+   res.json({ ok: true, desconto });
+   await registrarLog(id, desconto);
+   ```
+
+   Na prática: o cliente recebe sucesso mesmo que o log falhe. A rejeição acontece quando a resposta já foi enviada e pode virar erro não tratado, especialmente no Express 4.
+
+   Correção: registrar antes da resposta e tratar a falha; se o log for obrigatório, incluí-lo na mesma transação das alterações:
+
+   ```javascript
+   await registrarLog(id, desconto);
+   return res.json({ ok: true, desconto });
+   ```

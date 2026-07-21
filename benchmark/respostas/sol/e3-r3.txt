@@ -1,0 +1,71 @@
+1. **SQL injection**
+
+   - Trecho: `` `SELECT * FROM pedidos WHERE id = ${id}` ``
+   - Problema: `id` vem diretamente da URL. Um atacante pode alterar a consulta e acessar pedidos indevidos ou executar operações adicionais, dependendo do banco/driver.
+   - Correção: usar parâmetros e validar o formato:
+     ```js
+     if (!/^\d+$/.test(id)) {
+       return res.status(400).json({ erro: 'ID inválido' });
+     }
+     const pedido = await db.query(
+       'SELECT * FROM pedidos WHERE id = $1',
+       [id]
+     );
+     ```
+
+2. **Entrada inválida derruba a requisição**
+
+   - Trechos: `const { cupom } = req.body` e `cupom.toUpperCase()`
+   - Problema: corpo ausente, `cupom` ausente ou valor que não seja texto provoca exceção e resposta 500.
+   - Correção:
+     ```js
+     const cupom = req.body?.cupom;
+     if (typeof cupom !== 'string' || !cupom.trim()) {
+       return res.status(400).json({ erro: 'Cupom inválido' });
+     }
+     ```
+
+3. **Cupom inexistente é informado como sucesso**
+
+   - Trechos:
+     ```js
+     if (valido) { ... }
+     res.json({ ok: true, desconto });
+     ```
+   - Problema: quando o cupom não existe, a API responde `{ ok: true, desconto: 0 }`. O cliente pode considerar que o cupom foi aceito.
+   - Correção:
+     ```js
+     if (!valido) {
+       return res.status(422).json({ erro: 'Cupom inválido ou expirado' });
+     }
+     ```
+
+4. **O laço acessa um item inexistente**
+
+   - Trecho: `for (let i = 0; i <= itens.length; i++)`
+   - Problema: na última execução, `i === itens.length`; portanto, `itens[i]` é `undefined`. `aplicarDesconto` pode lançar uma exceção. Uma lista vazia também resulta em divisão por zero.
+   - Correção:
+     ```js
+     if (!Array.isArray(itens) || itens.length === 0) {
+       return res.status(409).json({ erro: 'Pedido sem itens' });
+     }
+
+     for (let i = 0; i < itens.length; i++) {
+       aplicarDesconto(itens[i], desconto / itens.length);
+     }
+     ```
+
+5. **A API confirma sucesso antes de registrar o log**
+
+   - Trecho:
+     ```js
+     res.json({ ok: true, desconto });
+     await registrarLog(id, desconto);
+     ```
+   - Problema: se o registro falhar, o cliente já recebeu sucesso. A rejeição acontece depois do envio da resposta e pode gerar erro não tratado ou tentativa de tratar um erro com os cabeçalhos já enviados.
+   - Correção: se o log é obrigatório, concluí-lo antes da resposta:
+     ```js
+     await registrarLog(id, desconto);
+     return res.json({ ok: true, desconto });
+     ```
+     Se for apenas informativo, executá-lo explicitamente como tarefa secundária e capturar a falha.

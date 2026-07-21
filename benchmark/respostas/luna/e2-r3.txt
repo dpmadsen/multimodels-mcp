@@ -1,0 +1,30 @@
+Causas-raiz:
+
+1. `Math.round` pode criar uma `sobra` negativa. Ao aplicá-la à primeira pessoa, ela pode acabar pagando menos, como em `11 / 3`, que gera `[3, 4, 4]`.
+
+2. Não há validação das entradas. Com `pessoas = 0`, ocorre divisão por zero e o resultado contém `NaN`, quebrando o uso posterior.
+
+```javascript
+function dividirConta(totalCentavos, pessoas) {
+  if (
+    !Number.isSafeInteger(totalCentavos) ||
+    totalCentavos < 0 ||
+    !Number.isSafeInteger(pessoas) ||
+    pessoas < 1
+  ) {
+    return null;
+  }
+
+  const base = Math.floor(totalCentavos / pessoas);
+  const extras = totalCentavos % pessoas;
+  const partes = [];
+
+  for (let i = 0; i < pessoas; i++) {
+    partes.push(base + (i < extras ? 1 : 0));
+  }
+
+  return partes;
+}
+
+module.exports = { dividirConta };
+```

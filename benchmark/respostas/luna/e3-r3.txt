@@ -1,0 +1,111 @@
+1. **SQL injection**
+
+   Trecho:
+
+   ```js
+   `SELECT * FROM pedidos WHERE id = ${id}`
+   ```
+
+   Na prática, alguém pode enviar um `id` como `1 OR 1=1` e alterar a consulta, acessando pedido indevido ou causando erro.
+
+   Correção: validar o ID e usar query parametrizada:
+
+   ```js
+   const pedidoId = Number(id);
+   if (!Number.isInteger(pedidoId)) {
+     return res.status(400).json({ erro: 'ID inválido' });
+   }
+
+   const resultado = await db.query(
+     'SELECT * FROM pedidos WHERE id = $1',
+     [pedidoId]
+   );
+   ```
+
+2. **`cupom` pode derrubar a requisição**
+
+   Trecho:
+
+   ```js
+   cupom.toUpperCase()
+   ```
+
+   Se o campo não existir, for `null` ou não for texto, ocorre `TypeError` e a requisição termina com erro 500.
+
+   Correção:
+
+   ```js
+   if (typeof cupom !== 'string') {
+     return res.status(400).json({ erro: 'Cupom inválido' });
+   }
+
+   const codigo = cupom.toUpperCase();
+   ```
+
+3. **Resultado de `db.query` pode estar sendo tratado como pedido**
+
+   Trecho:
+
+   ```js
+   const pedido = await db.query(...);
+   if (!pedido) ...
+   pedido.total
+   ```
+
+   Com drivers comuns como `pg` ou `mysql2`, `db.query()` retorna um objeto/array de resultado, que continua existindo mesmo quando nenhum pedido foi encontrado. O teste de 404 falha e `pedido.total`/`pedido.itens` ficam incorretos.
+
+   Correção: extrair a primeira linha e testar essa linha:
+
+   ```js
+   const { rows } = await db.query(...);
+   const pedido = rows[0];
+
+   if (!pedido) {
+     return res.status(404).json({ erro: 'Pedido não encontrado' });
+   }
+   ```
+
+4. **Loop acessa um item inexistente**
+
+   Trecho:
+
+   ```js
+   for (let i = 0; i <= itens.length; i++) {
+     aplicarDesconto(itens[i], desconto / itens.length);
+   }
+   ```
+
+   Quando `i === itens.length`, `itens[i]` é `undefined`. Se `aplicarDesconto` espera um item válido, a requisição quebra.
+
+   Correção:
+
+   ```js
+   for (let i = 0; i < itens.length; i++) {
+     aplicarDesconto(itens[i], descontoPorItem);
+   }
+   ```
+
+5. **Pedido sem itens gera `NaN` ou `Infinity`**
+
+   Trecho:
+
+   ```js
+   desconto / itens.length
+   ```
+
+   Com `itens.length === 0`, o cálculo resulta em `NaN` ou `Infinity`, além de tentar aplicar desconto a `undefined`.
+
+   Correção: tratar explicitamente pedidos vazios antes do cálculo, conforme a regra de negócio — rejeitar a operação ou retornar desconto zero.
+
+6. **A API responde sucesso antes de registrar o log**
+
+   Trecho:
+
+   ```js
+   res.json({ ok: true, desconto });
+   await registrarLog(id, desconto);
+   ```
+
+   O cliente recebe sucesso mesmo se o log falhar. Em Express 4, a rejeição também pode virar `unhandledPromiseRejection`.
+
+   Correção: registrar o log antes de responder, com tratamento de erro; ou enviar o log para uma fila própria com tratamento de falhas.

@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Multimodels — Relatório de Decisão</title>
+<style>
+:root{
+  --page:#f9f9f7; --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
+  --grid:#e1e0d9; --border:rgba(11,11,11,0.10);
+  --good:#0ca30c; --warn:#fab219; --crit:#d03b3b; --blue:#2a78d6; --blue-strong:#1c5cab;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--page);font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:var(--ink);padding:32px 24px;max-width:1100px;margin:0 auto}
+h1{font-size:clamp(24px,4vw,34px);letter-spacing:-0.02em;line-height:1.15}
+.sub{font-size:16px;color:var(--ink2);margin:8px 0 18px;line-height:1.5}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:22px}
+.chip{background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:6px 14px;font-size:13.5px;color:var(--ink2)}
+.chip b{color:var(--ink)}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px;border-bottom:2px solid var(--grid);padding-bottom:0}
+.tab{background:none;border:none;font:inherit;font-size:15px;font-weight:600;color:var(--muted);padding:10px 16px;cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-2px}
+.tab.on{color:var(--ink);border-bottom-color:var(--blue)}
+.tab:hover{color:var(--ink)}
+.pane{display:none}
+.pane.on{display:block}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px 24px;margin-bottom:16px}
+h2{font-size:14px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:12px}
+h3{font-size:17px;margin-bottom:6px}
+p,li{font-size:15px;line-height:1.55;color:var(--ink2)}
+li{margin:6px 0 6px 18px}
+strong{color:var(--ink)}
+table{width:100%;border-collapse:collapse}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600;padding:8px;text-align:left;border-bottom:2px solid var(--grid);position:sticky;top:0;background:var(--surface)}
+td{padding:9px 8px;border-bottom:1px solid var(--grid);font-size:14px;vertical-align:middle}
+tr:hover td{background:rgba(42,120,214,0.05)}
+.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12.5px;font-weight:700}
+.p-ok{background:rgba(12,163,12,0.12);color:#006300}
+.p-bad{background:rgba(208,59,59,0.12);color:var(--crit)}
+.p-warn{background:rgba(250,178,25,0.18);color:#7a5600}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px}
+.rota{border-left:5px solid var(--blue);border-radius:12px;background:var(--surface);border-top:1px solid var(--border);border-right:1px solid var(--border);border-bottom:1px solid var(--border);padding:16px 20px}
+.rota h3{font-size:15.5px}
+.rota .quem{font-size:19px;font-weight:800;color:var(--blue-strong);margin:4px 0}
+.filtros{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.f{background:var(--surface);border:1px solid var(--border);border-radius:999px;padding:5px 14px;font:inherit;font-size:13.5px;cursor:pointer;color:var(--ink2)}
+.f.on{background:var(--blue);color:#fff;border-color:var(--blue)}
+.bar-row{display:grid;grid-template-columns:210px 1fr 110px;align-items:center;gap:10px;margin:9px 0}
+.bar-name{font-size:14px;font-weight:600;text-align:right}
+.bar-track{position:relative;height:20px}
+.bar{position:absolute;left:0;top:0;height:20px;background:var(--blue);border-radius:0 4px 4px 0;min-width:2px}
+.bar-val{font-size:13.5px;font-weight:700;font-variant-numeric:tabular-nums}
+.nota{background:var(--surface);border:1px solid var(--border);border-left:5px solid var(--warn);border-radius:10px;padding:12px 16px;font-size:14px;color:var(--ink2);margin-top:10px}
+details{margin:8px 0}
+summary{cursor:pointer;font-weight:600;font-size:15px;color:var(--ink)}
+.foot{font-size:12.5px;color:var(--muted);margin-top:20px;line-height:1.5}
+@media (max-width:640px){ .bar-row{grid-template-columns:120px 1fr 90px} body{padding:18px 12px} }
+</style>
+</head>
+<body>
+
+<h1>Multimodels — Relatório de decisão</h1>
+<p class="sub">Tudo que três rodadas de benchmark ensinaram sobre delegar trabalho a outros modelos a partir do Claude Code — e a rota prática que sai disso. Atualizado em 21/07/2026.</p>
+
+<div class="chips">
+  <div class="chip"><b>3</b> rodadas de teste</div>
+  <div class="chip"><b>~290</b> execuções corrigidas</div>
+  <div class="chip"><b>14</b> modelos avaliados</div>
+  <div class="chip">custo real de API: <b>&lt; US$ 1</b></div>
+  <div class="chip">correção: <b>testes ocultos</b>, sempre</div>
+</div>
+
+<div class="tabs">
+  <button class="tab on" data-p="decisao">🎯 A Decisão</button>
+  <button class="tab" data-p="placar">📊 Placar (Rodada 3)</button>
+  <button class="tab" data-p="historico">📚 Rodadas 1 e 2</button>
+  <button class="tab" data-p="custos">💰 Custos</button>
+  <button class="tab" data-p="licoes">💡 Lições & Ideias</button>
+</div>
+
+<!-- ========== A DECISÃO ========== -->
+<div class="pane on" id="decisao">
+
+<div class="card">
+<h2>O seu time titular (o que os dados sustentam)</h2>
+<div class="grid2">
+  <div class="rota"><h3>Orquestrar, planejar, julgar</h3><div class="quem">Claude Fable / Opus</div><p>O cérebro da operação não se delega. Escreve as specs, distribui, confere e decide. Coberto pela assinatura Claude.</p></div>
+  <div class="rota"><h3>Implementar dentro do projeto</h3><div class="quem">Claude Sonnet 5</div><p>12 de 12 execuções perfeitas nas rodadas 2 e 3. Joga em casa: segue o CLAUDE.md, comenta no estilo certo, roda os próprios testes. Vantagem de casa é real.</p></div>
+  <div class="rota"><h3>Segunda opinião e trabalho fora do repo</h3><div class="quem">GPT-5.6 Luna (high)</div><p>6/6 na rodada 3, ~2 min por tarefa, outra fabricante (opinião independente de verdade), custo zero na assinatura do ChatGPT. Sempre em esforço <strong>high</strong> — nunca xhigh.</p></div>
+  <div class="rota"><h3>Terceiro par de mãos</h3><div class="quem">GLM 5.2</div><p>Código com os melhores comentários fora da casa Anthropic e custo zero na assinatura z.ai. No texto, esforço <strong>max</strong>. No modo agêntico (via Claude Code), funciona bem — desde que o tráfego à z.ai vá em fila, uma chamada por vez: o plano tem limite de requisições simultâneas, e sessão sem vaga trava em silêncio (sozinho, entregou 18/18 em 7min45).</p></div>
+</div>
+<div class="nota"><strong>Por que esses três?</strong> Anthropic, GPT e GLM são os que rodam <strong>com mãos</strong> na sua máquina (agentes nativos, Codex CLI e Claude Code→z.ai): abrem o projeto, leem o que precisam e rodam os testes antes de entregar. É isso — não “inteligência” — que os separou dos demais nos testes: contexto completo + autoverificação.</div>
+</div>
+
+<div class="card">
+<h2>O banco de reservas (baratos e úteis no papel certo)</h2>
+<ul>
+<li><strong>Grok 4.5</strong> (texto, via OpenRouter): a exceção que impressiona — único sem mãos a gabaritar tudo, incluindo a armadilha de conhecimento atual. Use pra tarefas fora do repo com bibliotecas modernas quando não quiser gastar uma raia com mãos. ~US$ 0,04/tarefa.</li>
+<li><strong>DS4 Pro/Flash</strong> (texto): imbatível em custo pra algoritmo puro bem especificado (1 centavo). <strong>Nunca</strong> com bibliotecas recentes — escreve o mundo antigo com confiança.</li>
+<li><strong>Qwen 27B no Celta</strong> (local, grátis): o local confiável — entregou 6/6. Tarefas de uma peça, sem bibliotecas atuais, sempre verificado. (O 35B é 3× mais rápido, porém errático: pensamento sem fim e até loop infinito.)</li>
+</ul>
+</div>
+
+<div class="card">
+<h2>A conta das assinaturas</h2>
+<p>Com <strong>Claude (US$ 100) + ChatGPT (US$ 20) + GLM/z.ai (~US$ 16) ≈ US$ 136/mês</strong>, você tem: orquestrador de ponta, três times de implementação com mãos de três fabricantes diferentes, e custo marginal <strong>zero</strong> por delegação — o que importa porque trabalho agêntico consome ~20× mais tokens que uma pergunta de chat. Os avulsos (Grok, DeepSeek) são centavos na conta do OpenRouter. Na prática: cada assinatura é um “bufê livre” de um time diferente, e você revezou os times pra nenhum bater no limite.</p>
+</div>
+
+<div class="card">
+<h2>As regras de ouro (versão final, 3 rodadas de cicatrizes)</h2>
+<ul>
+<li><strong>Spec fechada + testes seus + verificação executada.</strong> “Verifique antes de entregar” escrito no prompt é ignorado; obrigue a rodar o teste e colar a saída — e re-rode você.</li>
+<li><strong>Raia de texto recebe TUDO, arquivos inteiros.</strong> O que ela não vê, ela destrói ou inventa.</li>
+<li><strong>Esforço tem dose:</strong> Codex em high (xhigh = hesitação e maratona), GLM em max (high esquece o mundo novo), Grok no padrão.</li>
+<li><strong>Biblioteca moderna? Só com mãos ou memória fresca.</strong> Modelo barato + biblioteca atual = código plausível que não liga.</li>
+<li><strong>Rode 3× quando a decisão importar.</strong> Falha de conhecimento aparece na 1ª; falha de entrega só aparece repetindo.</li>
+</ul>
+</div>
+
+</div>
+
+<!-- ========== PLACAR R3 ========== -->
+<div class="pane" id="placar">
+<div class="card">
+<h2>Rodada 3 — 13 raias × 2 estações × 3 rodadas (clique pra filtrar)</h2>
+<div class="filtros" id="filtros">
+  <button class="f on" data-est="todas">Todas</button>
+  <button class="f" data-est="a">Estação A — armadilha zod v4</button>
+  <button class="f" data-est="b">Estação B — rateio cruel</button>
+</div>
+<div style="overflow-x:auto">
+<table id="tbl">
+<thead><tr><th>Raia</th><th>Tipo</th><th>Estação</th><th>R1</th><th>R2</th><th>R3</th><th>Leitura</th></tr></thead>
+<tbody></tbody>
+</table>
+</div>
+<p class="foot">Estação A: validador usando o zod v4 instalado de verdade (14 verificações ocultas) — pega quem só conhece a API antiga. Estação B: rateio de centavos com tetos (18 verificações) — raciocínio puro. “Não entregou” = travou, hesitou ou sufocou no próprio raciocínio.</p>
+</div>
+</div>
+
+<!-- ========== HISTÓRICO ========== -->
+<div class="pane" id="historico">
+
+<div class="card">
+<h2>Rodada 1 — as 6 estações sintéticas (198 execuções)</h2>
+<ul>
+<li><strong>Família Codex varreu:</strong> Sol, Terra e Luna 54/54 — e o Luna custa 1/5 do Sol. A descoberta mais útil do estudo.</li>
+<li><strong>Sonnet e Haiku tropeçaram na distribuição de centavos</strong> (1/3 cada) enquanto todos os baratos acertaram — fraqueza sistemática que a rodada 3 mostrou corrigida em prova nova.</li>
+<li><strong>JSON estruturado: 33/33 geral.</strong> Problema resolvido, delegue a qualquer um (validando na volta).</li>
+<li><strong>Honestidade é traço estável:</strong> quem inventa, inventa sempre (DS4 Flash); quem confere, confere sempre (Codex 9/9); Fable recusou com a melhor frase do estudo (“mecânico consertando o motor sem abrir o capô”).</li>
+</ul>
+</div>
+
+<div class="card">
+<h2>Rodada 2 — tarefa real, 7 implementadores, branches isoladas</h2>
+<div style="overflow-x:auto">
+<table>
+<tr><th>Implementador</th><th>Ocultos</th><th>Suíte</th><th>Veredito</th></tr>
+<tr><td><strong>🥇 Sonnet 5</strong></td><td>12/12</td><td>43 ✅</td><td>Vencedor — virou a feature oficial. Melhores comentários e CHANGELOG.</td></tr>
+<tr><td>🥈 Opus 4.8</td><td>12/12</td><td>42 ✅</td><td>Quase empatado, mais caro.</td></tr>
+<tr><td>GLM 5.2 com mãos</td><td>12/12</td><td><strong>45</strong> ✅</td><td>Rodada 2.1: a maior suíte de todas — a “cegueira” do texto sumiu com mãos.</td></tr>
+<tr><td>GPT-5.6 Luna</td><td>12/12</td><td>41 ✅</td><td>Perfeito e barato, zero comentários.</td></tr>
+<tr><td>GPT-5.6 Terra</td><td>12/12</td><td>40 ✅</td><td>Perfeito, zero comentários.</td></tr>
+<tr><td>GLM 5.2 texto</td><td>12/12</td><td>43/44 ❌</td><td>Escreveu um teste que o próprio código não passa — não podia rodar pra descobrir.</td></tr>
+<tr><td>DS4 Pro texto</td><td>12/12</td><td>37 ⚠️</td><td>Apagou 7 testes que não conseguia ver.</td></tr>
+</table>
+</div>
+<p style="margin-top:8px"><strong>A lição-mãe:</strong> raias de texto não falham como modelos fracos — falham no formato da raia: cegueira de contexto e cegueira de verificação. E o “imposto agêntico” é real: ~20× o custo de chat pro mesmo modelo.</p>
+</div>
+
+</div>
+
+<!-- ========== CUSTOS ========== -->
+<div class="pane" id="custos">
+
+<div class="card">
+<h2>Custo fixo mensal (assinaturas = bufê livre)</h2>
+<div class="bar-row"><div class="bar-name">Claude (Max)</div><div class="bar-track"><div class="bar" style="width:100%"></div></div><div class="bar-val">US$ 100</div></div>
+<div class="bar-row"><div class="bar-name">ChatGPT (Codex)</div><div class="bar-track"><div class="bar" style="width:20%"></div></div><div class="bar-val">US$ 20</div></div>
+<div class="bar-row"><div class="bar-name">z.ai (GLM)</div><div class="bar-track"><div class="bar" style="width:16%"></div></div><div class="bar-val">~US$ 16</div></div>
+<div class="bar-row"><div class="bar-name">OpenRouter (avulsos)</div><div class="bar-track"><div class="bar" style="width:3%"></div></div><div class="bar-val">centavos</div></div>
+<p style="margin-top:10px">≈ <strong>US$ 136/mês</strong> cobrem orquestrador + 3 times com mãos + locais de graça. As ~290 execuções das 3 rodadas custaram <strong>menos de US$ 1</strong> de API de verdade.</p>
+</div>
+
+<div class="card">
+<h2>Custo por tarefa nas raias avulsas (medido, rodada 3)</h2>
+<div class="bar-row"><div class="bar-name">DS4 Pro</div><div class="bar-track"><div class="bar" style="width:9%"></div></div><div class="bar-val">~US$ 0,008</div></div>
+<div class="bar-row"><div class="bar-name">GLM texto (equiv.)</div><div class="bar-track"><div class="bar" style="width:14%"></div></div><div class="bar-val">~US$ 0,012</div></div>
+<div class="bar-row"><div class="bar-name">Grok 4.5</div><div class="bar-track"><div class="bar" style="width:48%"></div></div><div class="bar-val">~US$ 0,043</div></div>
+<div class="bar-row"><div class="bar-name">Qwen (Celta)</div><div class="bar-track"><div class="bar" style="width:2%"></div></div><div class="bar-val">US$ 0 + luz</div></div>
+<div class="nota"><strong>O imposto agêntico:</strong> o mesmo modelo trabalhando “com mãos” consome ~20× os tokens do modo pergunta-resposta (ele relê o contexto a cada passo). Nas assinaturas isso é invisível; pagando por token, entra na conta.</div>
+</div>
+
+</div>
+
+<!-- ========== LIÇÕES ========== -->
+<div class="pane" id="licoes">
+
+<div class="card">
+<h2>As 5 lições das 3 rodadas</h2>
+<ul>
+<li><strong>1. Data de corte é o divisor de águas dos baratos.</strong> DS4 Pro, GLM-high e os dois Qwen zeraram a prova do zod v4 <strong>nove vezes em nove</strong>, sempre do mesmo jeito — API antiga escrita de memória, com confiança. Os mesmos modelos gabaritaram a prova de matemática. O barato não raciocina mal: ele conhece um mundo que acabou.</li>
+<li><strong>2. Só há duas defesas: mãos ou memória fresca.</strong> Quem confere a versão instalada (Codex, agentes Claude, GLM-CC) passa; quem foi treinado ontem (Grok) passa; quem não tem nenhuma das duas, não use com bibliotecas atuais.</li>
+<li><strong>3. Raciocínio com spec fechada virou commodity.</strong> Do modelo de 1 centavo ao topo de linha: 18/18. Pague por conhecimento e confiabilidade de entrega, não por “QI de prova”.</li>
+<li><strong>4. Esforço tem ponto ótimo.</strong> Codex: high perfeito e rápido; xhigh hesitou (“posso implementar?” pro vazio) e maratonou 60 min sem ganho. GLM: max resgata a memória da API nova (2/3) onde high afunda (0/3). Grok: padrão já basta.</li>
+<li><strong>5. Falha de conhecimento é certeira; falha de entrega é loteria.</strong> 0·0·0 na primeira dispensa repetição — mas hesitações e loops só aparecem rodando de novo — e o “travamento” do GLM agêntico se revelou congestionamento do plano da z.ai, resolvido com fila. Confiabilidade de entrega acompanha a dose de esforço e a saúde do provedor, não a inteligência.</li>
+</ul>
+</div>
+
+<div class="card">
+<h2>Insights que valem dinheiro</h2>
+<ul>
+<li><strong>“Concordância não é correção”</strong> (aviso do u/TyrianMurex, confirmado em dados): um modelo desatualizado erra <em>igualzinho</em> todas as vezes — duas rodadas concordantes podem estar ambas erradas. O único juiz é a dependência de verdade instalada e rodando.</li>
+<li><strong>Nota verde do delegado é testemunho, não evidência.</strong> O caso DS4 Pro (12/12 nos ocultos apagando 7 testes) virou lema: logs ou não aconteceu.</li>
+<li><strong>Vantagem de casa existe:</strong> agente nativo absorve as convenções do repositório de graça. Pra código que você vai manter, isso vale mais que nota de prova.</li>
+<li><strong>Sessão agêntica sem vaga trava em silêncio.</strong> O plano da z.ai limita requisições simultâneas: a chamada de texto sem vaga cai com erro visível; a sessão agêntica fica esperando muda — e matar o cliente deixa geração-zumbi ocupando o slot. Diagnóstico do Daniel, confirmado por experimento: a tarefa “travada” fez 18/18 rodando sozinha. Regra: uma chamada à z.ai por vez.</li>
+<li><strong>Modelo local é de graça como fogão a lenha:</strong> a lenha (configurar GPU, um modelo por vez, vigiar entrega) é você quem corta. O 27B corta menos lenha que o 35B.</li>
+</ul>
+</div>
+
+<div class="card">
+<h2>Ideias pra depois (backlog)</h2>
+<ul>
+<li><strong>Limite de gastos por provedor no painel</strong> (ideia do u/2frames_app): “pare de delegar pro X depois de N tokens no dia”.</li>
+<li><strong>Curva de dificuldade</strong> (ideia do u/mark_99): bateria fácil→difícil pra achar o ponto exato onde cada modelo barato começa a degradar; incluir Haiku e Opus-low vs Sonnet.</li>
+<li><strong>Kimi</strong> (pergunta do u/vitaminwhite): próximo candidato de raia texto barata.</li>
+<li><strong>Roteamento padrão no CLAUDE.md</strong>: “tarefa simples → Luna, salvo ordem contrária” (padrão do u/tackylitre06).</li>
+<li><strong>Fila por provedor + timeout com repescagem no multimodels</strong> — aprendizado direto do caso z.ai: serializar chamadas por provedor e repescar automaticamente entregas que passarem do prazo.</li>
+<li><strong>Registro de tropeços por raia</strong> (ideia do u/C6ntFor9et): catalogar erros recorrentes de cada modelo e realimentar os prompts de delegação.</li>
+</ul>
+</div>
+
+</div>
+
+<p class="foot">Metodologia em uma linha: provas e corretores escritos ANTES de qualquer modelo ver as tarefas; raias com mãos obrigadas a rodar os testes e colar a saída; orquestrador re-roda tudo. Estudos completos: benchmark/ (rodada 1), benchmark/rodada2-implementacao/ e benchmark/rodada3-esforco-e-cutoff/ no repositório.</p>
+
+<script>
+const abas = document.querySelectorAll('.tab');
+abas.forEach(t => t.addEventListener('click', () => {
+  abas.forEach(x => x.classList.remove('on'));
+  document.querySelectorAll('.pane').forEach(p => p.classList.remove('on'));
+  t.classList.add('on');
+  document.getElementById(t.dataset.p).classList.add('on');
+}));
+
+// [raia, tipo, estacao, r1, r2, r3, leitura]  — nota null = não entregou
+const D = [
+["Claude Sonnet 5","mãos (nativo)","a","14/14","14/14","14/14","perfeito 3×"],
+["Claude Sonnet 5","mãos (nativo)","b","18/18","18/18","18/18","perfeito 3×"],
+["Claude Opus 4.8","mãos (nativo)","a","14/14","14/14","14/14","perfeito 3×"],
+["Claude Opus 4.8","mãos (nativo)","b","18/18","18/18","18/18","perfeito 3×"],
+["GPT-5.6 Terra · high","mãos (Codex)","a","14/14","14/14","14/14","perfeito 3×"],
+["GPT-5.6 Terra · high","mãos (Codex)","b","18/18","18/18","18/18","perfeito 3×, ~2-4min"],
+["GPT-5.6 Luna · high","mãos (Codex)","a","14/14","14/14","14/14","perfeito 3×"],
+["GPT-5.6 Luna · high","mãos (Codex)","b","18/18","18/18","18/18","perfeito 3×, ~4-6min"],
+["Grok 4.5","texto","a","14/14","14/14","14/14","único texto-puro a passar — memória fresca"],
+["Grok 4.5","texto","b","18/18","18/18","18/18","perfeito 3×, o mais rápido (~1min)"],
+["GPT-5.6 Terra · xhigh","mãos (Codex)","a","14/14","14/14","14/14","nota igual ao high, mais lento"],
+["GPT-5.6 Terra · xhigh","mãos (Codex)","b","18/18","NE:planejou e pediu permissão pro vazio","18/18","hesitação fatal 1 de 3"],
+["GPT-5.6 Luna · xhigh","mãos (Codex)","a","14/14","14/14","14/14","nota igual ao high, mais lento"],
+["GPT-5.6 Luna · xhigh","mãos (Codex)","b","18/18","18/18 em 60min","18/18","maratona sem ganho"],
+["GLM 5.2 com mãos","mãos (Claude Code)","a","14/14","14/14","14/14","perfeito 3×"],
+["GLM 5.2 com mãos","mãos (Claude Code)","b","NE:travou sob tráfego concorrente na z.ai","18/18","18/18","era congestionamento do plano — rodando solo: 18/18 em 7min45"],
+["GLM 5.2 · max","texto","a","14/14","1/14","14/14","esforço max resgata a memória da API nova (2/3)"],
+["GLM 5.2 · max","texto","b","18/18","18/18","18/18","perfeito 3×"],
+["GLM 5.2 · high","texto","a","0/14","0/14","0/14","zod v3 de memória, 3× igual"],
+["GLM 5.2 · high","texto","b","18/18","18/18","18/18","perfeito 3×"],
+["DS4 Pro","texto","a","0/14","0/14","0/14","zod v3 de memória, 3× igual"],
+["DS4 Pro","texto","b","18/18","18/18","18/18","perfeito 3× por 1 centavo"],
+["Qwen3.6 27B (local)","texto","a","0/14","0/14","0/14","meio-conhece o v4, inventa o resto"],
+["Qwen3.6 27B (local)","texto","b","18/18","18/18","18/18","o local confiável: entregou 6/6"],
+["Qwen3.6 35B (local)","texto","a","0/14","0/14","NE:60k tokens só pensando","inventou z.cidr(); depois sufocou"],
+["Qwen3.6 35B (local)","texto","b","14/18","18/18","NE:código com loop infinito","errático: 3 rodadas, 3 comportamentos"],
+];
+const tb = document.querySelector('#tbl tbody');
+function pill(v){
+  if(v.startsWith('NE')) return '<span class="pill p-bad" title="'+v.slice(3)+'">não entregou</span>';
+  if(v==='14/14'||v==='18/18') return '<span class="pill p-ok">'+v+'</span>';
+  if(v.includes('60min')) return '<span class="pill p-warn">'+v+'</span>';
+  const n = parseInt(v);
+  if(!isNaN(n) && n < 14) return '<span class="pill p-bad">'+v+'</span>';
+  return '<span class="pill p-warn">'+v+'</span>';
+}
+function render(est){
+  tb.innerHTML = D.filter(r => est==='todas' || r[2]===est)
+    .map(r => '<tr><td><strong>'+r[0]+'</strong></td><td>'+r[1]+'</td><td>'+(r[2]==='a'?'A — zod v4':'B — rateio')+'</td><td>'+pill(r[3])+'</td><td>'+pill(r[4])+'</td><td>'+pill(r[5])+'</td><td style="color:var(--ink2)">'+r[6]+'</td></tr>').join('');
+}
+render('todas');
+document.querySelectorAll('.f').forEach(b => b.addEventListener('click', () => {
+  document.querySelectorAll('.f').forEach(x => x.classList.remove('on'));
+  b.classList.add('on');
+  render(b.dataset.est);
+}));
+</script>
+</body>
+</html>

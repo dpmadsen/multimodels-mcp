@@ -1,0 +1,95 @@
+## PLANO
+Usar `Map` para separar o histórico de cada chave.  
+Remover somente chamadas aceitas que ficaram mais velhas que a janela.  
+Negar sem registrar quando o limite já foi atingido.  
+Usar relógio injetável para testes determinísticos.  
+
+## CODIGO
+```javascript
+class RateLimiter {
+  constructor(limite, janelaMs, agora = Date.now) {
+    this.limite = limite;
+    this.janelaMs = janelaMs;
+    this.agora = agora;
+    this.chamadasPorChave = new Map();
+  }
+
+  permitir(chave) {
+    const tempoAtual = this.agora();
+    const chamadas = this.chamadasPorChave.get(chave) || [];
+
+    while (chamadas.length > 0 && tempoAtual - chamadas[0] > this.janelaMs) {
+      chamadas.shift();
+    }
+
+    if (chamadas.length >= this.limite) {
+      return false;
+    }
+
+    chamadas.push(tempoAtual);
+    this.chamadasPorChave.set(chave, chamadas);
+    return true;
+  }
+}
+
+module.exports = { RateLimiter };
+```
+
+## TESTES
+```javascript
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const { RateLimiter } = require('./ratelimiter.js');
+
+test('aplica o limite e não registra tentativas negadas', () => {
+  let tempo = 0;
+  const limiter = new RateLimiter(1, 1000, () => tempo);
+
+  assert.equal(limiter.permitir('ana'), true);
+
+  tempo = 500;
+  assert.equal(limiter.permitir('ana'), false);
+
+  tempo = 1001;
+  assert.equal(limiter.permitir('ana'), true);
+});
+
+test('mantém limites independentes para chaves diferentes', () => {
+  let tempo = 0;
+  const limiter = new RateLimiter(1, 1000, () => tempo);
+
+  assert.equal(limiter.permitir('ana'), true);
+  assert.equal(limiter.permitir('bruno'), true);
+  assert.equal(limiter.permitir('ana'), false);
+  assert.equal(limiter.permitir('bruno'), false);
+});
+
+test('expira chamadas apenas quando ficam mais velhas que a janela', () => {
+  let tempo = 0;
+  const limiter = new RateLimiter(1, 1000, () => tempo);
+
+  assert.equal(limiter.permitir('ana'), true);
+
+  tempo = 1000;
+  assert.equal(limiter.permitir('ana'), false);
+
+  tempo = 1001;
+  assert.equal(limiter.permitir('ana'), true);
+});
+
+test('usa uma janela realmente deslizante', () => {
+  let tempo = 100;
+  const limiter = new RateLimiter(2, 1000, () => tempo);
+
+  assert.equal(limiter.permitir('ana'), true);
+
+  tempo = 600;
+  assert.equal(limiter.permitir('ana'), true);
+
+  tempo = 1050;
+  assert.equal(limiter.permitir('ana'), false);
+
+  tempo = 1101;
+  assert.equal(limiter.permitir('ana'), true);
+});
+```

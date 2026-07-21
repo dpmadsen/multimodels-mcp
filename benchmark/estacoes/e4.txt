@@ -1,0 +1,6 @@
+Extraia os dados do texto abaixo e responda SOMENTE com JSON puro — sem cercas de código (```), sem nenhum texto antes ou depois. O JSON deve seguir EXATAMENTE este formato:
+{"clientes":[{"nome": string, "email": string ou null, "valor_centavos": inteiro, "vencimento": "YYYY-MM-DD"}], "total_centavos": inteiro}
+Regras: valores em centavos (R$ 1,00 = 100); datas no formato ISO YYYY-MM-DD; email null quando não houver; total_centavos = soma dos valores; mantenha a ordem em que as pessoas aparecem no texto.
+
+Texto:
+"A Marina Souza (marina.souza@gmail.com) ficou de pagar R$ 1.240,50 até o dia 5 de agosto de 2026. O seu Joaquim, aquele que não tem e-mail, deve mil e duzentos reais com vencimento em 15/08/2026. E a empresa Vertex Ltda (contato@vertex.com.br) tem uma fatura de R$ 3.999,99 vencendo no primeiro dia de setembro de 2026."

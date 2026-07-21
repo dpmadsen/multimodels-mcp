@@ -1,0 +1,27 @@
+- **Causa 1:** `Math.round()` pode arredondar para cima, criando uma divisão maior que o total; a “sobra” fica negativa e é descontada inteira da primeira pessoa.
+- **Causa 2:** faltava validar as entradas; com `pessoas = 0`, a divisão gera `Infinity` e depois `NaN`, em vez de retornar `null`.
+
+```javascript
+function dividirConta(totalCentavos, pessoas) {
+  if (
+    !Number.isInteger(totalCentavos) ||
+    totalCentavos < 0 ||
+    !Number.isInteger(pessoas) ||
+    pessoas < 1
+  ) {
+    return null;
+  }
+
+  const base = Math.floor(totalCentavos / pessoas);
+  const sobra = totalCentavos % pessoas;
+
+  return Array.from(
+    { length: pessoas },
+    (_, indice) => base + (indice < sobra ? 1 : 0)
+  );
+}
+
+module.exports = { dividirConta };
+```
+
+Verificação executada: entradas inválidas e 2.020 combinações válidas passaram.

@@ -1,0 +1,112 @@
+## PLANO
+
+Usar uma lista de timestamps independente para cada chave.
+Antes de cada tentativa, remover chamadas mais antigas que a janela.
+Permitir e registrar apenas quando o limite ainda não foi atingido.
+Testar limite, chaves independentes, expiração, janela deslizante e recusas não contabilizadas.
+
+## CODIGO
+
+```javascript
+'use strict';
+
+class RateLimiter {
+  constructor(limite, janelaMs, agora = Date.now) {
+    this.limite = limite;
+    this.janelaMs = janelaMs;
+    this.agora = agora;
+    this.chamadasPorChave = new Map();
+  }
+
+  permitir(chave) {
+    const tempoAtual = this.agora();
+    const inicioDaJanela = tempoAtual - this.janelaMs;
+    const chamadas = this.chamadasPorChave.get(chave) || [];
+
+    const chamadasVigentes = chamadas.filter(
+      (timestamp) => timestamp > inicioDaJanela
+    );
+
+    if (chamadasVigentes.length >= this.limite) {
+      this.chamadasPorChave.set(chave, chamadasVigentes);
+      return false;
+    }
+
+    chamadasVigentes.push(tempoAtual);
+    this.chamadasPorChave.set(chave, chamadasVigentes);
+    return true;
+  }
+}
+
+module.exports = { RateLimiter };
+```
+
+## TESTES
+
+```javascript
+'use strict';
+
+const test = require('node:test');
+const assert = require('node:assert');
+const { RateLimiter } = require('./ratelimiter.js');
+
+test('respeita o limite básico de chamadas', () => {
+  let tempo = 0;
+  const limiter = new RateLimiter(2, 1000, () => tempo);
+
+  assert.strictEqual(limiter.permitir('cliente'), true);
+  assert.strictEqual(limiter.permitir('cliente'), true);
+  assert.strictEqual(limiter.permitir('cliente'), false);
+});
+
+test('mantém contadores independentes por chave', () => {
+  let tempo = 0;
+  const limiter = new RateLimiter(1, 1000, () => tempo);
+
+  assert.strictEqual(limiter.permitir('cliente-a'), true);
+  assert.strictEqual(limiter.permitir('cliente-a'), false);
+  assert.strictEqual(limiter.permitir('cliente-b'), true);
+});
+
+test('expira chamadas depois que ficam mais velhas que a janela', () => {
+  let tempo = 0;
+  const limiter = new RateLimiter(1, 1000, () => tempo);
+
+  assert.strictEqual(limiter.permitir('cliente'), true);
+
+  tempo = 1000;
+  assert.strictEqual(limiter.permitir('cliente'), false);
+
+  tempo = 1001;
+  assert.strictEqual(limiter.permitir('cliente'), true);
+});
+
+test('aplica uma janela realmente deslizante', () => {
+  let tempo = 0;
+  const limiter = new RateLimiter(2, 1000, () => tempo);
+
+  assert.strictEqual(limiter.permitir('cliente'), true);
+
+  tempo = 600;
+  assert.strictEqual(limiter.permitir('cliente'), true);
+
+  tempo = 1001;
+  assert.strictEqual(limiter.permitir('cliente'), true);
+
+  tempo = 1100;
+  assert.strictEqual(limiter.permitir('cliente'), false);
+});
+
+test('chamadas negadas não contam para o limite', () => {
+  let tempo = 0;
+  const limiter = new RateLimiter(1, 1000, () => tempo);
+
+  assert.strictEqual(limiter.permitir('cliente'), true);
+
+  tempo = 1;
+  assert.strictEqual(limiter.permitir('cliente'), false);
+
+  tempo = 1001;
+  assert.strictEqual(limiter.permitir('cliente'), true);
+});
+```

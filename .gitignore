@@ -1,0 +1,16 @@
+# Chaves e segredos — NUNCA versionar
+.env
+.env.local
+.env.production
+
+# Dependências e arquivos gerados
+node_modules/
+dist/
+*.log
+
+# Sistema
+.DS_Store
+
+# Configuração local do Claude Code
+.claude/
+.playwright-mcp/

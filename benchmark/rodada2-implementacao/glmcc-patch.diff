@@ -1,0 +1,348 @@
+From 3265f321dc63a0cbb19c0cc246fbb17b6102c895 Mon Sep 17 00:00:00 2001
+From: Daniel Madsen <user@example.com>
+Date: Tue, 21 Jul 2026 09:12:52 -0300
+Subject: [PATCH] =?UTF-8?q?Rodada=202.1:=20escolha=20de=20modelo/esfor?=
+ =?UTF-8?q?=C3=A7o=20do=20Codex=20=E2=80=94=20GLM=205.2=20via=20Claude=20C?=
+ =?UTF-8?q?ode=20headless=20(z.ai)?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>
+---
+ CHANGELOG.md                |  7 ++++
+ config/models.json          |  3 +-
+ src/config.test.ts          | 40 ++++++++++++++++++++++
+ src/config.ts               | 21 ++++++++++++
+ src/providers/codex.test.ts | 67 +++++++++++++++++++++++++++++++++++++
+ src/providers/codex.ts      | 64 +++++++++++++++++++++++++----------
+ src/tools/delegate.ts       | 15 +++++++--
+ src/tools/list-models.ts    |  5 +++
+ 8 files changed, 201 insertions(+), 21 deletions(-)
+ create mode 100644 src/providers/codex.test.ts
+
+diff --git a/CHANGELOG.md b/CHANGELOG.md
+index ccbf8d4..072942d 100644
+--- a/CHANGELOG.md
++++ b/CHANGELOG.md
+@@ -2,6 +2,13 @@
+ 
+ > English version: [CHANGELOG.en.md](CHANGELOG.en.md)
+ 
++## 2026-07-21 — Escolha de modelo e esforço de raciocínio no Codex
++- Antes, toda tarefa delegada ao Codex ia sempre pro modelo padrão da máquina. Agora dá pra escolher, na hora de delegar, qual modelo da família GPT-5.6 usar (sol, terra ou luna) e com qual esforço de raciocínio (low, medium, high ou xhigh). Motivo: o luna custa 5 vezes menos que o sol e entrega a mesma qualidade em tarefas técnicas.
++- O cardápio (list_models) passa a mostrar uma linha pra cada modelo do Codex, além da linha de sempre do modelo padrão — ex.: `codex` e `codex:gpt-5.6-luna`.
++- Pedir um modelo que não está habilitado, ou um esforço inválido, devolve uma mensagem clara em português dizendo o que pode ser usado. O jeito antigo (só `codex`) continua funcionando igual.
++- A resposta volta com um rodapé dizendo qual modelo e esforço foram usados, quando informados.
++- Novos testes cobrindo a montagem dos argumentos do programa e a resolução dos ids `codex:<modelo>`; todos os testes (antigos e novos) passando.
++
+ ## 2026-07-20 — Benchmark de delegação (198 execuções) e correção do endpoint da z.ai
+ - Nova pasta `benchmark/` com o estudo completo de quais modelos podem receber tarefas delegadas: 6 provas × 11 modelos × 3 rodadas, tudo corrigido por testes automáticos que os modelos nunca viram. Inclui os enunciados, os corretores, todas as respostas, os relatórios e o kit pronto pra compartilhar no Reddit (imagens + texto em inglês).
+ - Descobertas principais: a família do Codex (Sol, Terra e Luna) acertou 100% de tudo; o Luna custa 5 vezes menos que o Sol e empatou com ele; extração de dados em JSON funcionou perfeitamente em todos os modelos; e repetir cada prova 3 vezes mudou várias conclusões que uma rodada única tinha dado.
+diff --git a/config/models.json b/config/models.json
+index 4a3945e..e8a4ed2 100644
+--- a/config/models.json
++++ b/config/models.json
+@@ -3,7 +3,8 @@
+     "codex": {
+       "type": "codex-cli",
+       "label": "Codex (assinatura ChatGPT)",
+-      "enabled": true
++      "enabled": true,
++      "models": ["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"]
+     },
+     "deepseek": {
+       "type": "openai-compat",
+diff --git a/src/config.test.ts b/src/config.test.ts
+index a78597c..ec24ef4 100644
+--- a/src/config.test.ts
++++ b/src/config.test.ts
+@@ -70,3 +70,43 @@ test("modelo não habilitado no painel é recusado", () => {
+ test("openai-compat sem modelo dá erro orientando o formato", () => {
+   assert.throws(() => resolveModel(fixture, "deepseek"), /precisa incluir o modelo/);
+ });
++
++// --- Codex com escolha de modelo (id "codex:<modelo>") ---
++// Configuração de mentira com a lista de modelos habilitada, só pra estes testes.
++const fixtureCodexComModelos: ModelsConfig = {
++  providers: {
++    codex: {
++      type: "codex-cli",
++      label: "Codex (assinatura ChatGPT)",
++      enabled: true,
++      models: ["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"],
++    },
++  },
++};
++
++test("resolve 'codex:gpt-5.6-luna' quando o modelo está na lista", () => {
++  const ref = resolveModel(fixtureCodexComModelos, "codex:gpt-5.6-luna");
++  assert.equal(ref.providerId, "codex");
++  assert.equal(ref.provider.type, "codex-cli");
++  assert.equal(ref.model, "gpt-5.6-luna");
++});
++
++test("id 'codex' continua funcionando mesmo com lista de modelos (compatibilidade)", () => {
++  const ref = resolveModel(fixtureCodexComModelos, "codex");
++  assert.equal(ref.model, undefined);
++});
++
++test("'codex:<modelo>' fora da lista dá erro listando os habilitados", () => {
++  assert.throws(
++    () => resolveModel(fixtureCodexComModelos, "codex:gpt-5.6-x"),
++    /não está habilitado.*gpt-5.6-sol.*gpt-5.6-terra.*gpt-5.6-luna/
++  );
++});
++
++test("'codex:<modelo>' sem lista de modelos habilitados dá erro explicando", () => {
++  // O fixture principal tem o codex sem a lista "models".
++  assert.throws(
++    () => resolveModel(fixture, "codex:gpt-5.6-luna"),
++    /não tem modelos explícitos habilitados/
++  );
++});
+diff --git a/src/config.ts b/src/config.ts
+index 9b95f61..d38107d 100644
+--- a/src/config.ts
++++ b/src/config.ts
+@@ -20,6 +20,9 @@ export interface CodexProvider {
+   type: "codex-cli";
+   label: string;
+   enabled: boolean;
++  // Modelos da família habilitados para escolha explícita via id "codex:<modelo>".
++  // Quando vazio/ausente, só o id "codex" (modelo padrão do CLI) é aceito.
++  models?: string[];
+ }
+ 
+ export type Provider = OpenAICompatProvider | CodexProvider;
+@@ -82,6 +85,24 @@ export function resolveModel(config: ModelsConfig, id: string): ModelRef {
+           `Habilitados: ${provider.models.join(", ") || "(nenhum)"}. Habilite-o no painel de controle (npm run panel).`
+       );
+     }
++  } else if (provider.type === "codex-cli") {
++    // id "codex" (sem modelo) continua funcionando como hoje: usa o padrão do CLI.
++    // id "codex:<modelo>" exige que o modelo esteja na lista habilitada.
++    if (model) {
++      const habilitados = provider.models ?? [];
++      if (habilitados.length === 0) {
++        throw new Error(
++          `O provedor "${providerId}" (${provider.label}) não tem modelos explícitos habilitados. ` +
++            `Use apenas "${providerId}" para o modelo padrão do CLI, ou adicione modelos no config/models.json.`
++        );
++      }
++      if (!habilitados.includes(model)) {
++        throw new Error(
++          `O modelo "${model}" não está habilitado para ${provider.label}. ` +
++            `Modelos habilitados: ${habilitados.join(", ")}.`
++        );
++      }
++    }
+   }
+   return { providerId, provider, model };
+ }
+diff --git a/src/providers/codex.test.ts b/src/providers/codex.test.ts
+new file mode 100644
+index 0000000..0700cf6
+--- /dev/null
++++ b/src/providers/codex.test.ts
+@@ -0,0 +1,67 @@
++// Testes da montagem dos argumentos do CLI do Codex (buildCodexArgs).
++// A função é pura: recebe a tarefa e as opções e devolve o array de
++// argumentos — sem spawn, sem arquivos, sem rede.
++import { test } from "node:test";
++import assert from "node:assert/strict";
++import { buildCodexArgs } from "./codex.js";
++
++test("argumentos base: sem modelo nem esforço", () => {
++  const args = buildCodexArgs("faça algo", { outFile: "/tmp/out.txt" });
++  assert.deepEqual(args, [
++    "exec",
++    "--skip-git-repo-check",
++    "--sandbox",
++    "read-only",
++    "--output-last-message",
++    "/tmp/out.txt",
++    "faça algo",
++  ]);
++});
++
++test("inclui '-m <modelo>' quando o modelo é informado", () => {
++  const args = buildCodexArgs("tarefa", { outFile: "/tmp/o", model: "gpt-5.6-luna" });
++  const i = args.indexOf("-m");
++  assert.notEqual(i, -1, "deve conter a flag -m");
++  assert.equal(args[i + 1], "gpt-5.6-luna");
++});
++
++test("inclui '-c model_reasoning_effort=<esforço>' quando o esforço é informado", () => {
++  const args = buildCodexArgs("tarefa", { outFile: "/tmp/o", effort: "high" });
++  const i = args.indexOf("-c");
++  assert.notEqual(i, -1, "deve conter a flag -c");
++  assert.equal(args[i + 1], "model_reasoning_effort=high");
++});
++
++test("modelo e esforço juntos vêm antes da tarefa (último argumento posicional)", () => {
++  const args = buildCodexArgs("minha tarefa", {
++    outFile: "/o",
++    model: "gpt-5.6-luna",
++    effort: "xhigh",
++  });
++  assert.equal(args[args.length - 1], "minha tarefa", "a tarefa deve ser o último argumento");
++  assert.ok(args.indexOf("-m") < args.length - 1, "-m deve vir antes da tarefa");
++  assert.ok(args.indexOf("-c") < args.length - 1, "-c deve vir antes da tarefa");
++});
++
++test("todos os esforços válidos são aceitos", () => {
++  for (const effort of ["low", "medium", "high", "xhigh"]) {
++    const args = buildCodexArgs("t", { outFile: "/o", effort });
++    assert.ok(
++      args.includes(`model_reasoning_effort=${effort}`),
++      `esforço ${effort} deveria ser aceito`
++    );
++  }
++});
++
++test("esforço inválido lança erro listando os válidos", () => {
++  assert.throws(
++    () => buildCodexArgs("t", { outFile: "/o", effort: "turbo" }),
++    /Esforço de raciocínio inválido.*low.*medium.*high.*xhigh/
++  );
++});
++
++test("esforço vazio não dispara erro (ausente, não inválido)", () => {
++  // effort undefined é simplesmente ignorado — não deve adicionar a flag -c.
++  const args = buildCodexArgs("t", { outFile: "/o" });
++  assert.equal(args.indexOf("-c"), -1);
++});
+diff --git a/src/providers/codex.ts b/src/providers/codex.ts
+index c10d36b..f3a3951 100644
+--- a/src/providers/codex.ts
++++ b/src/providers/codex.ts
+@@ -8,27 +8,57 @@ import { join } from "node:path";
+ 
+ const TIMEOUT_MS = 10 * 60 * 1000;
+ 
+-export async function runCodex(task: string, workdir?: string): Promise<string> {
++// Valores aceitos pelo Codex para o nível de raciocínio do modelo.
++const VALID_EFFORTS = ["low", "medium", "high", "xhigh"] as const;
++
++// Monta os argumentos passados ao `codex` (sem incluir o próprio executável).
++// Função pura — só organiza o array a partir das opções, sem efeitos colaterais.
++export function buildCodexArgs(
++  task: string,
++  opts: { outFile: string; model?: string; effort?: string }
++): string[] {
++  const args: string[] = [
++    "exec",
++    "--skip-git-repo-check",
++    "--sandbox",
++    "read-only",
++    "--output-last-message",
++    opts.outFile,
++  ];
++  if (opts.model) {
++    args.push("-m", opts.model);
++  }
++  if (opts.effort) {
++    if (!VALID_EFFORTS.includes(opts.effort as (typeof VALID_EFFORTS)[number])) {
++      throw new Error(
++        `Esforço de raciocínio inválido: "${opts.effort}". ` +
++          `Valores válidos: ${VALID_EFFORTS.join(", ")}.`
++      );
++    }
++    args.push("-c", `model_reasoning_effort=${opts.effort}`);
++  }
++  // A tarefa é o argumento posicional final: as opções (-m, -c, etc.)
++  // precisam vir antes dela, como o CLI espera.
++  args.push(task);
++  return args;
++}
++
++export async function runCodex(
++  task: string,
++  workdir?: string,
++  opts?: { model?: string; effort?: string }
++): Promise<string> {
+   const scratch = await mkdtemp(join(tmpdir(), "multimodels-codex-"));
+   const outFile = join(scratch, "last-message.txt");
+   try {
+     await new Promise<void>((resolve, reject) => {
+-      const child = spawn(
+-        "codex",
+-        [
+-          "exec",
+-          "--skip-git-repo-check",
+-          "--sandbox", "read-only",
+-          "--output-last-message", outFile,
+-          task,
+-        ],
+-        {
+-          cwd: workdir ?? process.cwd(),
+-          // stdin fechado ("ignore"): sem isso o codex fica esperando
+-          // entrada para sempre e a delegação trava.
+-          stdio: ["ignore", "ignore", "pipe"],
+-        }
+-      );
++      const args = buildCodexArgs(task, { outFile, ...opts });
++      const child = spawn("codex", args, {
++        cwd: workdir ?? process.cwd(),
++        // stdin fechado ("ignore"): sem isso o codex fica esperando
++        // entrada para sempre e a delegação trava.
++        stdio: ["ignore", "ignore", "pipe"],
++      });
+       let stderr = "";
+       child.stderr.on("data", (chunk: Buffer) => {
+         stderr += chunk.toString();
+diff --git a/src/tools/delegate.ts b/src/tools/delegate.ts
+index f22f8f7..20280ee 100644
+--- a/src/tools/delegate.ts
++++ b/src/tools/delegate.ts
+@@ -27,17 +27,26 @@ export function registerDelegate(server: McpServer, getConfig: () => ModelsConfi
+           .string()
+           .optional()
+           .describe("Somente para o codex: pasta do projeto em que ele pode ler arquivos (caminho absoluto)"),
++        effort: z
++          .string()
++          .optional()
++          .describe("Somente para o codex: esforço de raciocínio do modelo (low, medium, high ou xhigh)"),
+       },
+       annotations: { readOnlyHint: true, openWorldHint: true },
+     },
+-    async ({ model, task, workdir }) => {
++    async ({ model, task, workdir, effort }) => {
+       try {
+         const ref = resolveModel(getConfig(), model);
+         let text: string;
+         let footer: string;
+         if (ref.provider.type === "codex-cli") {
+-          text = await runCodex(task, workdir);
+-          footer = `[resposta de: ${ref.provider.label}]`;
++          text = await runCodex(task, workdir, { model: ref.model, effort });
++          const extras: string[] = [];
++          if (ref.model) extras.push(ref.model);
++          if (effort) extras.push(`esforço: ${effort}`);
++          footer = extras.length
++            ? `[resposta de: ${ref.provider.label} · ${extras.join(" · ")}]`
++            : `[resposta de: ${ref.provider.label}]`;
+         } else {
+           const result = await chatCompletion(ref.provider, ref.model!, task);
+           text = result.truncated
+diff --git a/src/tools/list-models.ts b/src/tools/list-models.ts
+index c0bc88c..fe1b0b4 100644
+--- a/src/tools/list-models.ts
++++ b/src/tools/list-models.ts
+@@ -19,7 +19,12 @@ export function registerListModels(server: McpServer, getConfig: () => ModelsCon
+       for (const [providerId, provider] of Object.entries(config.providers)) {
+         if (!provider.enabled) continue;
+         if (provider.type === "codex-cli") {
++          // O id "codex" usa o modelo padrão do CLI; cada modelo habilitado
++          // ganha também o seu próprio id "codex:<modelo>".
+           lines.push(`- id: codex — ${provider.label} [CLI local, sem chave]`);
++          for (const model of provider.models ?? []) {
++            lines.push(`- id: codex:${model} — ${provider.label} [CLI local, sem chave]`);
++          }
+           continue;
+         }
+         const status = provider.envKey
+-- 
+2.50.1 (Apple Git-155)
+

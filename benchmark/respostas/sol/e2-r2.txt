@@ -1,0 +1,26 @@
+1. `Math.round()` pode arredondar para cima, tornando a sobra negativa e fazendo a primeira pessoa pagar menos. Além disso, colocar toda a sobra apenas em `partes[0]` pode gerar diferenças maiores que 1 centavo.
+
+2. Não há validação antes da divisão; com zero pessoas, o cálculo produz `Infinity` e `NaN`, resultando em `[NaN]`.
+
+```javascript
+function dividirConta(totalCentavos, pessoas) {
+  if (
+    !Number.isInteger(totalCentavos) ||
+    totalCentavos < 0 ||
+    !Number.isInteger(pessoas) ||
+    pessoas < 1
+  ) {
+    return null;
+  }
+
+  const base = Math.floor(totalCentavos / pessoas);
+  const extras = totalCentavos % pessoas;
+
+  return Array.from(
+    { length: pessoas },
+    (_, indice) => base + (indice < extras ? 1 : 0)
+  );
+}
+
+module.exports = { dividirConta };
+```
