@@ -2,6 +2,14 @@
 
 > English translation of [CHANGELOG.md](CHANGELOG.md) (Portuguese original — the project is built in Portuguese, in plain non-technical language, by design).
 
+## 2026-07-22 — New lane: Gemini through the Google AI Pro subscription (via Antigravity)
+- You can now delegate tasks to Google's Gemini using Google AI Pro subscription credits (the one bundled with Google One) — no API cost, same scheme as Codex.
+- New menu ids: `gemini` (default model), `gemini:gemini-3.1-pro-high`, `gemini:gemini-3.1-pro-low`, `gemini:gemini-3.6-flash-high` and `gemini:gemini-3.6-flash-low`. Reasoning effort is chosen by the name suffix (high thinks harder, low answers faster).
+- Under the hood it uses the `agy` program (Antigravity CLI) — Google retired the old `gemini-cli` for personal accounts in June 2026, and `agy` is the official replacement. Runs in read-only mode: it analyzes and answers, never edits files.
+- Known limitation: in headless mode Gemini cannot READ project files (the permission is silently denied) — so the delegated task must carry the full context in its own text, just like the DeepSeek and GLM lanes. When it happens, the error message explains what to do.
+- The panel shows the Gemini card with the "subscription" badge, same as Codex.
+- 4 new automated tests, all 59 passing. Really tested: simple question and context-in-text task, correct answers from both Flash and Pro.
+
 ## 2026-07-22 — First community contributions: cross-platform panel and old-Node warning
 - Two improvements contributed by Sean Campbell (@rudi193-cmd), who found the project through Reddit — the first outside contributions accepted into the project:
 - The panel now opens the browser automatically on Windows and Linux too (it used to work only on the Mac), and the Codex error message no longer says "on the Mac" to people on other systems.

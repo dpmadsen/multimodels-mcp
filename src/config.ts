@@ -43,7 +43,26 @@ export interface CodexProvider {
   models?: string[];
 }
 
-export type Provider = OpenAICompatProvider | CodexProvider;
+export interface GeminiProvider {
+  type: "gemini-cli";
+  label: string;
+  enabled: boolean;
+  // Lista de modelos do Gemini habilitados para escolha explícita
+  // (ex.: "gemini-3-pro", "gemini-3-flash").
+  // Sem essa lista (ou vazia), só o id "gemini" simples funciona —
+  // que usa o modelo padrão configurado no CLI.
+  models?: string[];
+}
+
+export type Provider = OpenAICompatProvider | CodexProvider | GeminiProvider;
+
+// Provedores que funcionam por programa de linha de comando já logado
+// (assinatura), em vez de chave de API.
+export type CliProvider = CodexProvider | GeminiProvider;
+
+export function isCliProvider(provider: Provider): provider is CliProvider {
+  return provider.type === "codex-cli" || provider.type === "gemini-cli";
+}
 
 export interface ModelsConfig {
   providers: Record<string, Provider>;
@@ -104,14 +123,14 @@ export function resolveModel(config: ModelsConfig, id: string): ModelRef {
       );
     }
   }
-  if (provider.type === "codex-cli" && model) {
-    // "codex:<modelo>" escolhe explicitamente um modelo da família do Codex.
+  if (isCliProvider(provider) && model) {
+    // "<provedor>:<modelo>" escolhe explicitamente um modelo da família.
     // Sem lista configurada (ou lista vazia), nenhum modelo explícito existe.
     const enabled = provider.models ?? [];
     if (enabled.length === 0) {
       throw new Error(
         `O provedor "${providerId}" não tem nenhum modelo explícito habilitado. ` +
-          `Use apenas "codex" (sem dois-pontos) para usar o modelo padrão do CLI, ou adicione modelos em "models" no config/models.json.`
+          `Use apenas "${providerId}" (sem dois-pontos) para usar o modelo padrão do CLI, ou adicione modelos em "models" no config/models.json.`
       );
     }
     if (!enabled.includes(model)) {

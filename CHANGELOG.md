@@ -2,6 +2,14 @@
 
 > English version: [CHANGELOG.en.md](CHANGELOG.en.md)
 
+## 2026-07-22 — Raia nova: Gemini pela assinatura Google AI Pro (via Antigravity)
+- Agora dá pra delegar tarefas pro Gemini do Google usando os créditos da assinatura Google AI Pro (a que vem no Google One) — sem custo de API, mesmo esquema do Codex.
+- Ids novos no cardápio: `gemini` (modelo padrão), `gemini:gemini-3.1-pro-high`, `gemini:gemini-3.1-pro-low`, `gemini:gemini-3.6-flash-high` e `gemini:gemini-3.6-flash-low`. O esforço de raciocínio se escolhe pelo final do nome (high pensa mais, low responde mais rápido).
+- Por baixo dos panos usa o programa `agy` (Antigravity CLI) — o Google aposentou o antigo `gemini-cli` pra contas pessoais em junho/2026, e o `agy` é o substituto oficial. Roda em modo somente-leitura: analisa e responde, não altera arquivos.
+- Limitação conhecida: no modo automático o Gemini não consegue LER arquivos do projeto (a permissão é negada em silêncio) — então a tarefa delegada precisa levar todo o contexto no próprio texto, igual às raias DeepSeek e GLM. Se acontecer, a mensagem de erro explica o que fazer.
+- O painel mostra o cartão do Gemini com o selo "assinatura", igual ao do Codex.
+- 4 testes automatizados novos, todos os 59 passando. Testado de verdade: pergunta simples e tarefa com contexto no texto, respostas corretas do Flash e do Pro.
+
 ## 2026-07-22 — Primeiras contribuições da comunidade: painel multiplataforma e aviso de Node antigo
 - Duas melhorias enviadas pelo Sean Campbell (@rudi193-cmd), que conheceu o projeto pelo Reddit — as primeiras contribuições de fora aceitas no projeto:
 - O painel agora abre o navegador sozinho também no Windows e no Linux (antes só funcionava no Mac), e a mensagem de erro do Codex não fala mais "no Mac" pra quem usa outro sistema.

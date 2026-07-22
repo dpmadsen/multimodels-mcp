@@ -18,10 +18,10 @@ export function registerListModels(server: McpServer, getConfig: () => ModelsCon
       const lines: string[] = ["Modelos disponíveis para delegação (use o id com delegate_task):", ""];
       for (const [providerId, provider] of Object.entries(config.providers)) {
         if (!provider.enabled) continue;
-        if (provider.type === "codex-cli") {
-          lines.push(`- id: codex — ${provider.label} [CLI local, sem chave]`);
+        if (provider.type === "codex-cli" || provider.type === "gemini-cli") {
+          lines.push(`- id: ${providerId} — ${provider.label} [CLI local, sem chave]`);
           for (const model of provider.models ?? []) {
-            lines.push(`- id: codex:${model} — ${provider.label} [CLI local, sem chave]`);
+            lines.push(`- id: ${providerId}:${model} — ${provider.label} [CLI local, sem chave]`);
           }
           continue;
         }

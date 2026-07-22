@@ -21,6 +21,7 @@ interface Props {
 
 const DESCRIPTIONS: Record<string, string> = {
   codex: "Usa o programa codex já logado no Mac — coberto pela assinatura do ChatGPT, sem custo de API.",
+  gemini: "Usa o programa agy (Antigravity) já logado na conta Google — coberto pela assinatura Google AI Pro, sem custo de API.",
   deepseek: "Modelos da DeepSeek via API. Digite o id do modelo (ex.: deepseek-chat).",
   zai: "Modelos GLM da z.ai via API. Digite o id do modelo (ex.: glm-4.6).",
   openrouter: "Um catálogo com centenas de modelos de vários fabricantes numa chave só.",
@@ -56,7 +57,9 @@ export function ProviderCard({ provider, onChanged, onError }: Props) {
             ) : (
               provider.label
             )}
-            {provider.type === "codex-cli" && <Badge variant="secondary">assinatura</Badge>}
+            {(provider.type === "codex-cli" || provider.type === "gemini-cli") && (
+              <Badge variant="secondary">assinatura</Badge>
+            )}
             {isLmStudio(provider) && (
               <Badge variant="secondary">
                 {isLocalInstance(provider) ? "grátis · local" : "grátis · rede"}

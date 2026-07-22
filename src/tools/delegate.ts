@@ -6,6 +6,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { resolveModel, type ModelsConfig } from "../config.js";
 import { chatCompletion } from "../providers/openai-compat.js";
 import { runCodex } from "../providers/codex.js";
+import { runGemini } from "../providers/gemini.js";
 
 export function registerDelegate(server: McpServer, getConfig: () => ModelsConfig): void {
   server.registerTool(
@@ -26,7 +27,10 @@ export function registerDelegate(server: McpServer, getConfig: () => ModelsConfi
         workdir: z
           .string()
           .optional()
-          .describe("Somente para o codex: pasta do projeto em que ele pode ler arquivos (caminho absoluto)"),
+          .describe(
+            "Somente para o codex: pasta do projeto em que ele pode ler arquivos (caminho absoluto). " +
+              "O gemini NÃO lê arquivos no modo headless — mande todo o contexto no texto da tarefa"
+          ),
         effort: z
           .string()
           .optional()
@@ -43,8 +47,11 @@ export function registerDelegate(server: McpServer, getConfig: () => ModelsConfi
         const ref = resolveModel(getConfig(), model);
         let text: string;
         let footer: string;
-        if (ref.provider.type === "codex-cli") {
-          text = await runCodex(task, workdir, ref.model, effort);
+        if (ref.provider.type === "codex-cli" || ref.provider.type === "gemini-cli") {
+          text =
+            ref.provider.type === "codex-cli"
+              ? await runCodex(task, workdir, ref.model, effort)
+              : await runGemini(task, workdir, ref.model, effort);
           const detalhes = [ref.model, effort ? `esforço: ${effort}` : undefined].filter(Boolean);
           footer =
             detalhes.length > 0

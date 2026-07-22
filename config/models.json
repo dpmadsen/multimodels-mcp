@@ -10,6 +10,17 @@
         "gpt-5.6-luna"
       ]
     },
+    "gemini": {
+      "type": "gemini-cli",
+      "label": "Gemini (assinatura Google AI Pro)",
+      "enabled": true,
+      "models": [
+        "gemini-3.1-pro-high",
+        "gemini-3.1-pro-low",
+        "gemini-3.6-flash-high",
+        "gemini-3.6-flash-low"
+      ]
+    },
     "deepseek": {
       "type": "openai-compat",
       "label": "DeepSeek",
