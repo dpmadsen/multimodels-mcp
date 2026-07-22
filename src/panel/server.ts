@@ -52,7 +52,7 @@ function stateSnapshot(): unknown {
     label: provider.label,
     type: provider.type,
     enabled: provider.enabled,
-    models: provider.type === "openai-compat" ? provider.models : [],
+    models: provider.models ?? [],
     baseUrl: provider.type === "openai-compat" ? provider.baseUrl : null,
     key:
       provider.type === "openai-compat" && provider.envKey

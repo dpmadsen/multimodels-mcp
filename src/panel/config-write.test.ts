@@ -10,6 +10,7 @@ function fixture(): ModelsConfig {
   return {
     providers: {
       codex: { type: "codex-cli", label: "Codex", enabled: true },
+      gemini: { type: "gemini-cli", label: "Gemini", enabled: true, models: ["gemini-3-pro"] },
       deepseek: {
         type: "openai-compat",
         label: "DeepSeek",
@@ -36,7 +37,7 @@ function fixture(): ModelsConfig {
       "lmstudio-rede": {
         type: "openai-compat",
         label: "LM Studio (rede)",
-        baseUrl: "http://192.168.0.61:1234/v1",
+        baseUrl: "http://192.168.68.61:1234/v1",
         enabled: true,
         models: [],
       },
@@ -74,10 +75,44 @@ test("rejeita provedor desconhecido", () => {
   );
 });
 
-test("rejeita lista de modelos no codex (não tem modelos configuráveis)", () => {
+test("atualiza a lista de modelos de um provedor codex-cli", () => {
+  const config = fixture();
+  const next = applyConfigUpdate(config, {
+    providers: { codex: { models: ["gpt-5.6-sol", "gpt-5.6-sol", "gpt-5.6-luna"] } },
+  });
+  const codex = next.providers.codex;
+  assert.equal(codex.type, "codex-cli");
+  if (codex.type === "codex-cli") {
+    assert.deepEqual(codex.models, ["gpt-5.6-sol", "gpt-5.6-luna"], "sem duplicados");
+  }
+  assert.equal(config.providers.codex.type === "codex-cli" && config.providers.codex.models, undefined, "o original não pode mudar");
+});
+
+test("atualiza a lista de modelos de um provedor gemini-cli", () => {
+  const next = applyConfigUpdate(fixture(), {
+    providers: { gemini: { models: ["gemini-3-pro", "gemini-3-flash"] } },
+  });
+  const gemini = next.providers.gemini;
+  assert.equal(gemini.type, "gemini-cli");
+  if (gemini.type === "gemini-cli") {
+    assert.deepEqual(gemini.models, ["gemini-3-pro", "gemini-3-flash"]);
+  }
+});
+
+test("rejeita mudança de endereço em provedor de CLI (assinatura, sem endereço editável)", () => {
   assert.throws(
-    () => applyConfigUpdate(fixture(), { providers: { codex: { models: ["x"] } } }),
-    /não tem lista de modelos/
+    () =>
+      applyConfigUpdate(fixture(), {
+        providers: { codex: { baseUrl: "http://192.168.68.70:5000/v1" } },
+      }),
+    /não pode ser alterado/
+  );
+  assert.throws(
+    () =>
+      applyConfigUpdate(fixture(), {
+        providers: { gemini: { baseUrl: "http://192.168.68.70:5000/v1" } },
+      }),
+    /não pode ser alterado/
   );
 });
 
@@ -105,18 +140,18 @@ test("rejeita apelido vazio ou comprido demais", () => {
 
 test("troca o endereço de uma instância do LM Studio", () => {
   const next = applyConfigUpdate(fixture(), {
-    providers: { "lmstudio-rede": { baseUrl: "http://192.168.0.70:5000/v1" } },
+    providers: { "lmstudio-rede": { baseUrl: "http://192.168.68.70:5000/v1" } },
   });
   const rede = next.providers["lmstudio-rede"];
   assert.ok(rede.type === "openai-compat");
-  assert.equal(rede.baseUrl, "http://192.168.0.70:5000/v1");
+  assert.equal(rede.baseUrl, "http://192.168.68.70:5000/v1");
 });
 
 test("rejeita mudança de endereço em provedor de nuvem (tem chave de API)", () => {
   assert.throws(
     () =>
       applyConfigUpdate(fixture(), {
-        providers: { deepseek: { baseUrl: "http://192.168.0.70:5000/v1" } },
+        providers: { deepseek: { baseUrl: "http://192.168.68.70:5000/v1" } },
       }),
     /não pode ser alterado/
   );
@@ -127,6 +162,6 @@ test("rejeita endereço que não é uma URL http válida", () => {
     applyConfigUpdate(fixture(), { providers: { "lmstudio-rede": { baseUrl: "não é url" } } })
   );
   assert.throws(() =>
-    applyConfigUpdate(fixture(), { providers: { "lmstudio-rede": { baseUrl: "ftp://192.168.0.70" } } })
+    applyConfigUpdate(fixture(), { providers: { "lmstudio-rede": { baseUrl: "ftp://192.168.68.70" } } })
   );
 });

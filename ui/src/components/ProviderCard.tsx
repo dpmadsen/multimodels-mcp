@@ -110,6 +110,17 @@ export function ProviderCard({ provider, onChanged, onError }: Props) {
           )}
         </CardContent>
       )}
+      {(provider.type === "codex-cli" ||
+        provider.type === "gemini-cli" ||
+        provider.type === "claude-cli") && (
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Modelos habilitados</p>
+            <ModelList models={provider.models} onRemove={removeModel} />
+          </div>
+          <AddModelInput placeholder="id do modelo…" onAdd={addModel} />
+        </CardContent>
+      )}
     </Card>
   );
 }

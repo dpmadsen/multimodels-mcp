@@ -2,6 +2,10 @@
 
 > English translation of [CHANGELOG.md](CHANGELOG.md) (Portuguese original — the project is built in Portuguese, in plain non-technical language, by design).
 
+## 0.3.1 (2026-07-22) — Panel: subscription cards now show their models
+- The Codex, Gemini and GLM-with-hands cards looked "empty" in the panel: enabled models were not shown (a flaw inherited since the Codex card). Now every card shows the "Enabled models" list and allows adding/removing, just like the API cards.
+- 3 new panel-server tests (71 total, all passing).
+
 ## 0.3.0 (2026-07-22) — GLM-with-hands lane: GLM now reads the project and runs the tests
 - The trick that shone in the benchmark became an official provider: the new id `glm-maos:glm-5.2` runs GLM piloting a disposable Claude Code pointed at z.ai — it READS project files, searches the code and actually runs `npm test`/`npm run build`, but CANNOT edit anything (write tools stay blocked).
 - In benchmark round 2.1 this recipe turned text-only GLM (which shipped a broken test without knowing) into the author of the largest test suite of any lane. Now it is one delegation away, no manual script.

@@ -2,6 +2,10 @@
 
 > English version: [CHANGELOG.en.md](CHANGELOG.en.md)
 
+## 0.3.1 (2026-07-22) — Painel: cartões de assinatura agora mostram seus modelos
+- Os cartões do Codex, do Gemini e do GLM-com-mãos apareciam "vazios" no painel: os modelos habilitados não eram mostrados (falha herdada desde o cartão do Codex). Agora todos os cartões mostram a lista "Modelos habilitados" e deixam adicionar/remover, igual aos cartões de API.
+- 3 testes novos no servidor do painel (71 no total, todos passando).
+
 ## 0.3.0 (2026-07-22) — Raia GLM com mãos: o GLM agora lê o projeto e roda os testes
 - O truque que brilhou no benchmark virou provedor oficial: o id novo `glm-maos:glm-5.2` roda o GLM pilotando um Claude Code descartável apontado pra z.ai — ele LÊ os arquivos do projeto, procura no código e roda `npm test`/`npm run build` de verdade, mas NÃO pode editar nada (as ferramentas de escrita ficam bloqueadas).
 - Na rodada 2.1 do benchmark, essa receita transformou o GLM só-texto (que entregava teste quebrado sem saber) no autor da maior suíte de testes de todas as raias. Agora ela está a uma delegação de distância, sem script manual.

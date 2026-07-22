@@ -49,9 +49,10 @@ export function applyConfigUpdate(config: ModelsConfig, rawUpdate: unknown): Mod
       provider.baseUrl = change.baseUrl;
     }
     if (change.models !== undefined) {
-      if (provider.type !== "openai-compat") {
-        throw new Error(`O provedor "${providerId}" não tem lista de modelos configurável.`);
-      }
+      // Todos os tipos aceitam lista de modelos: os de nuvem (openai-compat) e
+      // os de CLI por assinatura (codex-cli, gemini-cli) e a raia claude-cli.
+      // Guardamos sempre um array (nos tipos de CLI o campo é opcional na
+      // interface, mas no arquivo escrevemos a lista já sem duplicados).
       provider.models = [...new Set(change.models)];
     }
   }
