@@ -21,6 +21,18 @@
         "gemini-3.6-flash-low"
       ]
     },
+    "glm-maos": {
+      "type": "claude-cli",
+      "label": "GLM com mãos (z.ai + Claude Code)",
+      "baseUrl": "https://api.z.ai/api/anthropic",
+      "envKey": "ZAI_API_KEY",
+      "enabled": true,
+      "models": [
+        "glm-5.2"
+      ],
+      "maxConcurrent": 1,
+      "timeoutMs": 900000
+    },
     "deepseek": {
       "type": "openai-compat",
       "label": "DeepSeek",

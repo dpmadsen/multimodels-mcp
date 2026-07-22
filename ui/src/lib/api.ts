@@ -8,7 +8,7 @@ export interface KeyStatus {
 export interface ProviderState {
   id: string;
   label: string;
-  type: "openai-compat" | "codex-cli" | "gemini-cli";
+  type: "openai-compat" | "codex-cli" | "gemini-cli" | "claude-cli";
   enabled: boolean;
   models: string[];
   baseUrl: string | null;

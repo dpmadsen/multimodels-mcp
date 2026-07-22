@@ -27,6 +27,7 @@ const DESCRIPTIONS: Record<string, string> = {
   openrouter: "Um catálogo com centenas de modelos de vários fabricantes numa chave só.",
   lmstudio: "Modelos rodando de graça no seu próprio Mac, pelo LM Studio.",
   "lmstudio-rede": "Modelos rodando de graça em outra máquina da sua rede, pelo LM Studio dela.",
+  "glm-maos": "O GLM pilotando um Claude Code descartável: lê o projeto e roda os testes, mas não edita nada. Usa a chave da z.ai.",
 };
 
 export function ProviderCard({ provider, onChanged, onError }: Props) {
@@ -57,7 +58,9 @@ export function ProviderCard({ provider, onChanged, onError }: Props) {
             ) : (
               provider.label
             )}
-            {(provider.type === "codex-cli" || provider.type === "gemini-cli") && (
+            {(provider.type === "codex-cli" ||
+              provider.type === "gemini-cli" ||
+              provider.type === "claude-cli") && (
               <Badge variant="secondary">assinatura</Badge>
             )}
             {isLmStudio(provider) && (

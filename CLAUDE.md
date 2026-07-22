@@ -58,3 +58,4 @@ Pro Daniel, uso pessoal, rodando só no Mac dele dentro do Claude Code.
 ### Versionamento
 - Feature concluída e testada = commit com mensagem descritiva. Não acumule mudanças sem commit.
 - A cada feature concluída, atualize o CHANGELOG.md na raiz, em português simples, sem termos técnicos.
+- Número de versão (desde a 0.2.0): feature nova sobe o meio (0.2.0 → 0.3.0), correção sobe o fim (0.2.0 → 0.2.1). Atualize o "version" do package.json junto com o commit da feature, e o título da entrada no CHANGELOG carrega a versão: "## 0.3.0 (data) — Nome da feature".

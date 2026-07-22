@@ -7,6 +7,7 @@ import { resolveModel, type ModelsConfig } from "../config.js";
 import { chatCompletion } from "../providers/openai-compat.js";
 import { runCodex } from "../providers/codex.js";
 import { runGemini } from "../providers/gemini.js";
+import { runClaudeCli } from "../providers/claude-cli.js";
 
 export function registerDelegate(server: McpServer, getConfig: () => ModelsConfig): void {
   server.registerTool(
@@ -47,7 +48,17 @@ export function registerDelegate(server: McpServer, getConfig: () => ModelsConfi
         const ref = resolveModel(getConfig(), model);
         let text: string;
         let footer: string;
-        if (ref.provider.type === "codex-cli" || ref.provider.type === "gemini-cli") {
+        if (ref.provider.type === "claude-cli") {
+          // Raia "com mãos" v1: o esforço do GLM na z.ai é configurado pelo
+          // endpoint, fora do escopo desta raia — pedir "effort" aqui é engano.
+          if (effort !== undefined) {
+            throw new Error(
+              `A raia "${ref.provider.label}" não aceita o campo "effort" (o esforço do GLM na z.ai é configurado pelo endpoint, fora do escopo desta raia).`
+            );
+          }
+          text = await runClaudeCli(ref.provider, task, workdir, ref.model);
+          footer = `[resposta de: ${ref.provider.label} · ${ref.model} · com mãos]`;
+        } else if (ref.provider.type === "codex-cli" || ref.provider.type === "gemini-cli") {
           text =
             ref.provider.type === "codex-cli"
               ? await runCodex(task, workdir, ref.model, effort)

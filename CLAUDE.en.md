@@ -58,3 +58,4 @@ For Daniel, personal use, running only on his Mac inside Claude Code.
 ### Versioning
 - Completed and tested feature = commit with a descriptive message. Don't pile up uncommitted changes.
 - With each completed feature, update the CHANGELOG.md at the root, in plain Portuguese, without technical jargon.
+- Version number (since 0.2.0): a new feature bumps the middle (0.2.0 → 0.3.0), a fix bumps the end (0.2.0 → 0.2.1). Update the package.json "version" together with the feature commit, and the CHANGELOG entry title carries the version: "## 0.3.0 (date) — Feature name".

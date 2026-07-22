@@ -54,7 +54,25 @@ export interface GeminiProvider {
   models?: string[];
 }
 
-export type Provider = OpenAICompatProvider | CodexProvider | GeminiProvider;
+export interface ClaudeCliProvider {
+  type: "claude-cli";
+  label: string;
+  enabled: boolean;
+  // Endereço do motor de outro fabricante (vira ANTHROPIC_BASE_URL).
+  baseUrl: string;
+  // Nome da variável do .env com a chave desse motor (ex.: "ZAI_API_KEY").
+  envKey: string;
+  // Lista de modelos habilitados. O modelo é obrigatório nesta raia
+  // (a receita exige --model explícito), então nunca há forma "pelada".
+  models: string[];
+  // Máximo de chamadas simultâneas (fila por provedor). A z.ai engasga com
+  // paralelo, então usa 1. Ausente = sem fila.
+  maxConcurrent?: number;
+  // Prazo (em ms) por delegação. Ausente = 15 minutos (o GLM na z.ai é lento).
+  timeoutMs?: number;
+}
+
+export type Provider = OpenAICompatProvider | CodexProvider | GeminiProvider | ClaudeCliProvider;
 
 // Provedores que funcionam por programa de linha de comando já logado
 // (assinatura), em vez de chave de API.
@@ -116,6 +134,21 @@ export function resolveModel(config: ModelsConfig, id: string): ModelRef {
       );
     }
     // O painel é o cardápio: só modelos habilitados podem receber delegação.
+    if (!provider.models.includes(model)) {
+      throw new Error(
+        `O modelo "${model}" não está habilitado para ${provider.label}. ` +
+          `Habilitados: ${provider.models.join(", ") || "(nenhum)"}. Habilite-o no painel de controle (npm run panel).`
+      );
+    }
+  }
+  if (provider.type === "claude-cli") {
+    // A receita exige --model explícito, então não existe forma "pelada":
+    // o id precisa trazer o modelo, e ele tem que estar na lista habilitada.
+    if (!model) {
+      throw new Error(
+        `Para o provedor "${providerId}" o id precisa incluir o modelo, ex.: "${providerId}:${provider.models[0] ?? "glm-5.2"}".`
+      );
+    }
     if (!provider.models.includes(model)) {
       throw new Error(
         `O modelo "${model}" não está habilitado para ${provider.label}. ` +

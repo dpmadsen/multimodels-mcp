@@ -2,7 +2,14 @@
 
 > English version: [CHANGELOG.en.md](CHANGELOG.en.md)
 
-## 2026-07-22 — Raia nova: Gemini pela assinatura Google AI Pro (via Antigravity)
+## 0.3.0 (2026-07-22) — Raia GLM com mãos: o GLM agora lê o projeto e roda os testes
+- O truque que brilhou no benchmark virou provedor oficial: o id novo `glm-maos:glm-5.2` roda o GLM pilotando um Claude Code descartável apontado pra z.ai — ele LÊ os arquivos do projeto, procura no código e roda `npm test`/`npm run build` de verdade, mas NÃO pode editar nada (as ferramentas de escrita ficam bloqueadas).
+- Na rodada 2.1 do benchmark, essa receita transformou o GLM só-texto (que entregava teste quebrado sem saber) no autor da maior suíte de testes de todas as raias. Agora ela está a uma delegação de distância, sem script manual.
+- Usa a chave da z.ai que já está no .env (assinatura, sem custo extra); identidade descartável a cada chamada (não toca no login do Claude do Daniel); fila de 1 chamada por vez e prazo de 15 minutos, porque a z.ai é lenta e engasga com paralelo.
+- Todas as proteções da raia Gemini vieram juntas: teto de memória, prazos que não empatam, acentos intactos e erros explicados em português.
+- 8 testes automatizados novos (69 no total, todos passando). Testado de verdade: o GLM leu um arquivo secreto numa pasta de teste e respondeu o conteúdo correto na primeira tentativa.
+
+## 0.2.0 (2026-07-22) — Raia nova: Gemini pela assinatura Google AI Pro (via Antigravity)
 - Agora dá pra delegar tarefas pro Gemini do Google usando os créditos da assinatura Google AI Pro (a que vem no Google One) — sem custo de API, mesmo esquema do Codex.
 - Ids novos no cardápio: `gemini` (modelo padrão), `gemini:gemini-3.1-pro-high`, `gemini:gemini-3.1-pro-low`, `gemini:gemini-3.6-flash-high` e `gemini:gemini-3.6-flash-low`. O esforço de raciocínio se escolhe pelo final do nome (high pensa mais, low responde mais rápido).
 - Por baixo dos panos usa o programa `agy` (Antigravity CLI) — o Google aposentou o antigo `gemini-cli` pra contas pessoais em junho/2026, e o `agy` é o substituto oficial. Roda em modo somente-leitura: analisa e responde, não altera arquivos.

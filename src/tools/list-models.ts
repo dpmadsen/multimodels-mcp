@@ -25,6 +25,16 @@ export function registerListModels(server: McpServer, getConfig: () => ModelsCon
           }
           continue;
         }
+        if (provider.type === "claude-cli") {
+          // Raia "com mãos": CLI local, mas precisa da chave do motor no .env.
+          const status = process.env[provider.envKey]
+            ? `CLI local + chave ${provider.envKey}: chave OK`
+            : `CLI local + chave ${provider.envKey}: SEM CHAVE — preencher ${provider.envKey} no .env`;
+          for (const model of provider.models) {
+            lines.push(`- id: ${providerId}:${model} — ${provider.label} [${status}]`);
+          }
+          continue;
+        }
         const status = provider.envKey
           ? process.env[provider.envKey]
             ? "chave OK"

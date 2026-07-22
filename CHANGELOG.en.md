@@ -2,7 +2,14 @@
 
 > English translation of [CHANGELOG.md](CHANGELOG.md) (Portuguese original — the project is built in Portuguese, in plain non-technical language, by design).
 
-## 2026-07-22 — New lane: Gemini through the Google AI Pro subscription (via Antigravity)
+## 0.3.0 (2026-07-22) — GLM-with-hands lane: GLM now reads the project and runs the tests
+- The trick that shone in the benchmark became an official provider: the new id `glm-maos:glm-5.2` runs GLM piloting a disposable Claude Code pointed at z.ai — it READS project files, searches the code and actually runs `npm test`/`npm run build`, but CANNOT edit anything (write tools stay blocked).
+- In benchmark round 2.1 this recipe turned text-only GLM (which shipped a broken test without knowing) into the author of the largest test suite of any lane. Now it is one delegation away, no manual script.
+- Uses the z.ai key already in .env (subscription, no extra cost); disposable identity per call (never touches Daniel's Claude login); queue of 1 call at a time and a 15-minute deadline, because z.ai is slow and chokes on parallel calls.
+- All the Gemini lane protections came along: memory caps, timeouts that never tie, intact accents and errors explained in Portuguese.
+- 8 new automated tests (69 total, all passing). Really tested: GLM read a secret file in a test folder and answered the correct content on the first try.
+
+## 0.2.0 (2026-07-22) — New lane: Gemini through the Google AI Pro subscription (via Antigravity)
 - You can now delegate tasks to Google's Gemini using Google AI Pro subscription credits (the one bundled with Google One) — no API cost, same scheme as Codex.
 - New menu ids: `gemini` (default model), `gemini:gemini-3.1-pro-high`, `gemini:gemini-3.1-pro-low`, `gemini:gemini-3.6-flash-high` and `gemini:gemini-3.6-flash-low`. Reasoning effort is chosen by the name suffix (high thinks harder, low answers faster).
 - Under the hood it uses the `agy` program (Antigravity CLI) — Google retired the old `gemini-cli` for personal accounts in June 2026, and `agy` is the official replacement. Runs in read-only mode: it analyzes and answers, never edits files.
