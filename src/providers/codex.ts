@@ -1,4 +1,4 @@
-// Ponte com o Codex: usa o programa `codex` já instalado e logado no Mac
+// Ponte com o Codex: usa o programa `codex` já instalado e logado (Mac, Linux ou Windows)
 // (assinatura do ChatGPT — sem custo de API). Roda em modo somente-leitura:
 // o Codex analisa e responde, mas não altera arquivos.
 import { spawn } from "node:child_process";
@@ -65,7 +65,7 @@ export async function runCodex(
         clearTimeout(timer);
         if (err.code === "ENOENT") {
           reject(
-            new Error("Não encontrei o programa `codex` no Mac. Instale com: npm install -g @openai/codex e faça login.")
+            new Error("Não encontrei o programa `codex` no PATH. Instale com: npm install -g @openai/codex e faça login.")
           );
         } else {
           reject(err);
