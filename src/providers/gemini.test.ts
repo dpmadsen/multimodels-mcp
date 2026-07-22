@@ -34,6 +34,22 @@ test("o prazo do agy (11m) é maior que o nosso kill (10m), pra ele nunca desist
   assert.equal(args[i + 1], "11m");
 });
 
+test("inclui --add-dir <workdir> quando 'workdir' é passado, antes do -p (tarefa continua última)", () => {
+  const args = buildGeminiArgs("faça isso", { model: "gemini-3.6-flash-low", workdir: "/uma/pasta" });
+  const i = args.indexOf("--add-dir");
+  assert.notEqual(i, -1);
+  assert.equal(args[i + 1], "/uma/pasta");
+  // --add-dir vem antes do -p, e a tarefa segue sendo o último argumento.
+  assert.ok(i < args.indexOf("-p"));
+  assert.equal(args[args.length - 1], "faça isso");
+  assert.equal(args[args.length - 2], "-p");
+});
+
+test("sem 'workdir' não inclui --add-dir", () => {
+  const args = buildGeminiArgs("faça isso", { model: "gemini-3.6-flash-low" });
+  assert.equal(args.indexOf("--add-dir"), -1);
+});
+
 test("pedir esforço dá erro amigável apontando pro sufixo do modelo (-low/-medium/-high)", () => {
   assert.throws(() => buildGeminiArgs("t", { effort: "high" }), /sufixo do modelo/);
 });

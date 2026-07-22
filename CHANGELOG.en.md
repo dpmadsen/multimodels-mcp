@@ -2,6 +2,12 @@
 
 > English translation of [CHANGELOG.md](CHANGELOG.md) (Portuguese original — the project is built in Portuguese, in plain non-technical language, by design).
 
+## 0.4.0 (2026-07-22) — Gemini got eyes: file reading in delegations
+- The Gemini lane is no longer text-only: given the task folder (workdir), Gemini now actually READS project files — same read-only scheme as Codex (reading yes, touching no).
+- What unlocked it: we discovered agy ignores the old config file and only honors permissions in `~/.gemini/antigravity-cli/settings.json` (Daniel created it with read-only rules), and that the task folder must be attached with `--add-dir` (without it agy cannot even see the folder).
+- Error messages updated: if permissions are not configured, the message now teaches the right file path instead of just telling you to paste the context into the text.
+- 2 new tests (73 total, all passing). Really tested 4 times: Gemini read a secret file and answered the exact content every time.
+
 ## 0.3.1 (2026-07-22) — Panel: subscription cards now show their models
 - The Codex, Gemini and GLM-with-hands cards looked "empty" in the panel: enabled models were not shown (a flaw inherited since the Codex card). Now every card shows the "Enabled models" list and allows adding/removing, just like the API cards.
 - 3 new panel-server tests (71 total, all passing).

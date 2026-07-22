@@ -2,6 +2,12 @@
 
 > English version: [CHANGELOG.en.md](CHANGELOG.en.md)
 
+## 0.4.0 (2026-07-22) — O Gemini ganhou olhos: leitura de arquivos nas delegações
+- A raia Gemini deixou de ser só-texto: passando a pasta da tarefa (workdir), o Gemini agora LÊ os arquivos do projeto de verdade — mesmo esquema somente-leitura do Codex (ler pode, mexer não).
+- O que destravou: descobrimos que o agy ignora o arquivo de configuração antigo e só respeita permissões em `~/.gemini/antigravity-cli/settings.json` (o Daniel criou o arquivo com regras só de leitura), e que a pasta da tarefa precisa ser anexada com `--add-dir` (sem isso o agy nem enxerga a pasta).
+- As mensagens de erro foram atualizadas: se as permissões não estiverem configuradas, a mensagem agora ensina o caminho do arquivo certo em vez de só mandar colar o contexto no texto.
+- 2 testes novos (73 no total, todos passando). Testado de verdade 4 vezes: o Gemini leu um arquivo secreto e respondeu o conteúdo exato em todas.
+
 ## 0.3.1 (2026-07-22) — Painel: cartões de assinatura agora mostram seus modelos
 - Os cartões do Codex, do Gemini e do GLM-com-mãos apareciam "vazios" no painel: os modelos habilitados não eram mostrados (falha herdada desde o cartão do Codex). Agora todos os cartões mostram a lista "Modelos habilitados" e deixam adicionar/remover, igual aos cartões de API.
 - 3 testes novos no servidor do painel (71 no total, todos passando).

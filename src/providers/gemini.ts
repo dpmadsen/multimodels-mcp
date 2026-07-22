@@ -33,7 +33,7 @@ export function resolveAgyBinary(): string {
 
 // Monta os argumentos passados ao `spawn(agy, args)` — função pura, sem
 // efeitos colaterais, pra ficar fácil de testar. Não inclui o próprio executável.
-export function buildGeminiArgs(task: string, opts: { model?: string; effort?: string } = {}): string[] {
+export function buildGeminiArgs(task: string, opts: { model?: string; effort?: string; workdir?: string } = {}): string[] {
   if (opts.effort !== undefined) {
     // No agy o esforço faz parte do nome do modelo (sufixo -low/-medium/-high).
     throw new Error(
@@ -49,6 +49,12 @@ export function buildGeminiArgs(task: string, opts: { model?: string; effort?: s
   if (opts.model) {
     args.push("--model", opts.model);
   }
+  // --add-dir: sem isso o agy ignora o cwd do spawn e usa uma workspace interna
+  // dele, não enxergando a pasta da tarefa. Passando a pasta aqui, a leitura de
+  // arquivos (com as allow-rules do agy configuradas) funciona.
+  if (opts.workdir) {
+    args.push("--add-dir", opts.workdir);
+  }
   args.push("-p", task);
   return args;
 }
@@ -61,7 +67,7 @@ export async function runGemini(task: string, workdir?: string, model?: string, 
     throw new Error(`A pasta indicada em workdir não existe: ${workdir}`);
   }
   return await new Promise<string>((resolve, reject) => {
-    const child = spawn(resolveAgyBinary(), buildGeminiArgs(task, { model, effort }), {
+    const child = spawn(resolveAgyBinary(), buildGeminiArgs(task, { model, effort, workdir }), {
       cwd: workdir ?? process.cwd(),
       // stdin fechado ("ignore"): sem isso o agy fica esperando
       // entrada para sempre e a delegação trava.
@@ -137,7 +143,7 @@ export async function runGemini(task: string, workdir?: string, model?: string, 
         reject(
           new Error(
             negado
-              ? "O Gemini tentou usar uma ferramenta (provavelmente ler um arquivo) que o modo headless não permite. Reenvie a tarefa incluindo todo o conteúdo necessário no próprio texto."
+              ? "O Gemini tentou usar uma ferramenta que o modo headless bloqueou. A leitura de arquivos precisa do arquivo de permissões do agy (~/.gemini/antigravity-cli/settings.json) com allow-rules de leitura; ou reenvie a tarefa com todo o conteúdo no próprio texto."
               : "O Gemini terminou sem deixar uma resposta final."
           )
         );

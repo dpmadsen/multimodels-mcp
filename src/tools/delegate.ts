@@ -29,8 +29,8 @@ export function registerDelegate(server: McpServer, getConfig: () => ModelsConfi
           .string()
           .optional()
           .describe(
-            "Somente para o codex: pasta do projeto em que ele pode ler arquivos (caminho absoluto). " +
-              "O gemini NÃO lê arquivos no modo headless — mande todo o contexto no texto da tarefa"
+            "Vale para codex, gemini e glm-maos: pasta do projeto que o modelo pode LER (caminho absoluto). " +
+              "Para o gemini, requer o arquivo de permissões do agy configurado (senão, mande o contexto no texto)"
           ),
         effort: z
           .string()
