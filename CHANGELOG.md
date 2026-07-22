@@ -2,6 +2,12 @@
 
 > English version: [CHANGELOG.en.md](CHANGELOG.en.md)
 
+## 2026-07-22 — Primeiras contribuições da comunidade: painel multiplataforma e aviso de Node antigo
+- Duas melhorias enviadas pelo Sean Campbell (@rudi193-cmd), que conheceu o projeto pelo Reddit — as primeiras contribuições de fora aceitas no projeto:
+- O painel agora abre o navegador sozinho também no Windows e no Linux (antes só funcionava no Mac), e a mensagem de erro do Codex não fala mais "no Mac" pra quem usa outro sistema.
+- Quem tentar instalar com uma versão antiga do Node (abaixo da 21) agora recebe um aviso claro na instalação — antes, o `npm test` fingia que tinha rodado os testes sem rodar nenhum, sem avisar nada.
+- Por cima da contribuição, adicionamos uma proteção: se o computador não tiver navegador (ex.: servidor sem tela), o painel segue funcionando em vez de fechar sozinho.
+
 ## 2026-07-21 — Fila com repescagem por provedor e esforço de raciocínio nas APIs
 - Duas melhorias que vieram direto dos aprendizados do benchmark: a z.ai e o LM Studio engasgavam com chamadas ao mesmo tempo (a sessão travava em silêncio ou a conexão caía), e o esforço de raciocínio muda o resultado do GLM (o esforço máximo acerta onde o alto errava).
 - Fila por provedor: agora dá pra limitar quantas chamadas simultâneas cada provedor aguenta (a z.ai e os dois LM Studio agora ficam limitados a 1 de cada vez); as demais chamadas esperam a vez, em vez de derrubar a conexão.
@@ -35,7 +41,7 @@
 - Consertado o endereço da z.ai: a chave de assinatura de coding só funciona no balcão de coding (`/api/coding/paas/v4`). No endereço antigo, dava um erro enganoso de "saldo insuficiente".
 
 ## 2026-07-20 — Segunda instância do LM Studio (outra máquina da rede)
-- Novo provedor "LM Studio (rede)": modelos rodando de graça em outra máquina da rede do Daniel (192.168.0.61), pelo LM Studio dela.
+- Novo provedor "LM Studio (rede)": modelos rodando de graça em outra máquina da rede do Daniel (192.168.68.61), pelo LM Studio dela.
 - O botão "Detectar modelos baixados" do painel agora funciona pra qualquer instância do LM Studio — a do Mac e quantas forem adicionadas depois.
 - Mensagens sob medida quando algo não responde: a instância local sugere ligar o servidor do LM Studio; a da rede lembra de conferir se a outra máquina está ligada e com "Serve on Local Network" ativado.
 - Selo no painel diferencia "grátis · local" de "grátis · rede".

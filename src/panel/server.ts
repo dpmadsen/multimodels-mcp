@@ -148,10 +148,21 @@ const server = createServer((req, res) => {
   serveStatic(res, url.pathname);
 });
 
-// openInBrowser helper
+// Abre a URL no navegador padrão em qualquer sistema (Mac, Linux, Windows).
+// Sem navegador (ex.: servidor sem tela), falha em silêncio: o endereço já
+// foi impresso no terminal, então o painel continua acessível à mão.
 function openInBrowser(address: string): void {
-  const [command, args]: [string, string[]] = process.platform === "darwin" ? ["open", [address]] : process.platform === "win32" ? ["cmd", ["/c", "start", "", address]] : ["xdg-open", [address]];
-  try { spawn(command, args, { stdio: "ignore", detached: true }).unref(); } catch {}
+  const [command, args]: [string, string[]] =
+    process.platform === "darwin"
+      ? ["open", [address]]
+      : process.platform === "win32"
+        ? ["cmd", ["/c", "start", "", address]]
+        : ["xdg-open", [address]];
+  const child = spawn(command, args, { stdio: "ignore", detached: true });
+  // O erro de "programa não existe" chega por evento, não por exceção;
+  // sem este ouvinte ele derrubaria o processo do painel.
+  child.on("error", () => {});
+  child.unref();
 }
 
 server.listen(PORT, HOST, () => {

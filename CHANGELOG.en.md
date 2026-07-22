@@ -2,6 +2,39 @@
 
 > English translation of [CHANGELOG.md](CHANGELOG.md) (Portuguese original — the project is built in Portuguese, in plain non-technical language, by design).
 
+## 2026-07-22 — First community contributions: cross-platform panel and old-Node warning
+- Two improvements contributed by Sean Campbell (@rudi193-cmd), who found the project through Reddit — the first outside contributions accepted into the project:
+- The panel now opens the browser automatically on Windows and Linux too (it used to work only on the Mac), and the Codex error message no longer says "on the Mac" to people on other systems.
+- Anyone installing with an old Node version (below 21) now gets a clear warning at install time — before, `npm test` would pretend it had run the tests while running none, without saying a word.
+- On top of the contribution we added a safeguard: if the machine has no browser (e.g. a headless server), the panel keeps running instead of shutting itself down.
+
+## 2026-07-21 — Per-provider queue with retry, and reasoning effort for API providers
+- Two improvements that came straight out of the benchmark lessons: z.ai and LM Studio choked on simultaneous calls (the session silently hung or the connection dropped), and reasoning effort changes GLM's results (max effort gets right what high effort got wrong).
+- Per-provider queue: you can now cap how many simultaneous calls each provider takes (z.ai and both LM Studio entries are now limited to 1 at a time); extra calls wait their turn instead of killing the connection.
+- Automatic retry: if a call fails from a connection problem or a transient provider error (rate limit or server instability on their side), the system waits 2 seconds and retries once on its own. Malformed-request errors don't retry (repeating wouldn't help).
+- Per-call timeout is now adjustable per provider (z.ai got 15 minutes and the LM Studio entries 30, because local models are slower).
+- Reasoning effort (how hard the model "thinks" before answering) now works on API providers too, not just Codex: z.ai ships configured with its format and OpenRouter with its own. Callers can request an effort per delegation or rely on each provider's default.
+- The response footer now shows the effort used (when any) and flags answers that only arrived after a retry.
+- 12 new automated tests (4 queue + 8 effort/retry), all 55 passing.
+
+## 2026-07-21 — Benchmark round 3: the fresh-knowledge exam
+- New round built from the Reddit community's ideas: 13 lanes (including debutants Grok 4.5, Qwen 27B and GLM at two effort levels), 2 new stations × 3 runs each, with controlled reasoning effort and mandatory verification.
+- The star station used a genuinely installed current library: models with stale knowledge (DeepSeek, budget GLM, both Qwens) wrote old-version code 9 times out of 9 — code that doesn't even boot. Whoever has "hands" to check (Codex, Claude agents) or fresh memory (Grok) walked through unharmed.
+- Other findings: too much effort backfires (Codex at max effort hesitated and marathon-ran; at high it was fast and perfect); the pure-math station was aced by nearly everyone, from the 1-cent model to the priciest; and delivery failures (hanging, not answering) are random while knowledge failures are dead-consistent.
+- Full report, the 78-run scoreboard, stations and graders in `benchmark/rodada3-esforco-e-cutoff/`.
+
+## 2026-07-20 — Benchmark round 2: 5 models implemented the same real feature
+- The feature below (choosing the Codex model) became an experiment: Sonnet, Opus, GPT-5.6 Terra, GPT-5.6 Luna and DS4 Pro each implemented the same task on their own branch, graded by 12 hidden checks written beforehand.
+- All of them aced the hidden checks — but the close review separated the field: Sonnet did the best work (more tests, project-style comments, best changelog) and its version was the one merged. DS4 Pro, which only receives text, accidentally deleted 7 existing tests — proof that attaching the FULL context is not overkill.
+- Full study, with costs and lessons, in `benchmark/rodada2-implementacao/`. Each model's branch was preserved.
+
+## 2026-07-20 — Choosing the Codex model and reasoning effort at delegation time
+- You can now request a specific model from the Codex family when delegating: besides the plain id "codex" (which keeps using the Mac's default model), "codex:gpt-5.6-sol", "codex:gpt-5.6-terra" and "codex:gpt-5.6-luna" also work.
+- You can also pick the reasoning effort (how hard the model "thinks" before answering): low, medium, high or extra-high — useful because Luna costs a fifth of Sol and ties it on technical tasks (see today's benchmark).
+- The "list models" tool now shows one line per enabled Codex model instead of the single generic line.
+- Asking for a model or effort that doesn't exist returns an error message spelling out the valid options.
+- 8 new automated tests covering these cases, all passing.
+
 ## 2026-07-20 — Delegation benchmark (198 runs) and z.ai endpoint fix
 - New `benchmark/` folder with the full study of which models can safely receive delegated tasks: 6 stations × 11 models × 3 rounds, all graded by automated tests the models never saw. Includes the station prompts, the graders, every raw response, the reports, and the ready-to-share Reddit kit (images + English text).
 - Key findings: the Codex family (Sol, Terra and Luna) scored 100% on everything; Luna costs 5× less than Sol and tied with it; structured JSON extraction was perfect across every model; and running each station 3 times overturned several conclusions a single round had suggested.
