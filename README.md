@@ -71,9 +71,13 @@ Seven implementers (Claude, GPT-5.6 and GLM lanes, agentic and text-only) built 
 
 Designed by the Reddit comment section: 13 lanes × 2 stations × 3 rounds, with reasoning effort controlled and a station built against the **actually installed zod v4**: [`benchmark/rodada3-esforco-e-cutoff/`](benchmark/rodada3-esforco-e-cutoff/). The cheap models didn't fail at reasoning — they failed at knowing what year it is (0/14 nine-for-nine on the trap, 18/18 on pure reasoning). Only two defenses exist: file access, or fresh training data.
 
-![Round 3 scorecard](benchmark/imagens/benchmark-5-round3-scorecard.png)
+### Round 4 (partial) — the newcomers
 
-There's also an interactive decision report (in Portuguese) consolidating all three rounds: [`benchmark/relatorio-decisao.html`](benchmark/relatorio-decisao.html).
+Two requested lanes on the same two stations: [`benchmark/rodada4-raias-novas/`](benchmark/rodada4-raias-novas/). **Kimi K3** (text-only, via OpenRouter) ran and became the **second text-only lane ever to beat the cutoff trap** — 14/14 on the zod v4 station from memory alone, joining Grok 4.5 in the "fresh memory" club. But its delivery is shaky: heavy reasoning (6.5–11.4k reasoning tokens per answer) blew the provider's 5-minute timeout on 3 of 6 runs, and it's pricey (~$0.14 per delivered task, $3/$15 per M — reasoning dominates). The two **Gemini** lanes (3.1 Pro high and 3.6 Flash high) are **pending** — the Google subscription quota ran out; that window resets ~Jul 29.
+
+![Rounds 3–4 scorecard](benchmark/imagens/benchmark-7-rounds34-scorecard.png)
+
+There's also an interactive decision report (in Portuguese) consolidating all rounds: [`benchmark/relatorio-decisao.html`](benchmark/relatorio-decisao.html).
 
 ## Repo notes
 

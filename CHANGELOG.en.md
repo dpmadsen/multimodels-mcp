@@ -2,6 +2,13 @@
 
 > English translation of [CHANGELOG.md](CHANGELOG.md) (Portuguese original — the project is built in Portuguese, in plain non-technical language, by design).
 
+## 2026-07-22 — Benchmark round 4 (partial): Kimi K3 debuts; Gemini waits on quota
+- We tested two new lanes on the same two stations as round 3 (the validator against the really-installed zod v4, and the cents-allocation puzzle), with the same hidden graders. Only Kimi K3 got to run; the two Gemini lanes were postponed.
+- The Kimi K3 finding (it only receives text, never looks at the files): it beat the "new-library trap" — it wrote the current zod API from memory and aced it (14/14). It's only the second text-only model to pull this off; the other was Grok, in the previous round. The "fresh-memory club" now has two members.
+- Kimi's catch: delivery is shaky and pricey. Half the runs died (3 of 6) — the model thinks too much and blows the provider's 5-minute deadline; the fix is to raise that deadline. And it was expensive: ~US$ 0.14 per delivered task, about three times Grok.
+- The two Gemini lanes (3.1 Pro and 3.6 Flash) didn't run: the Google subscription quota ran out that day. It reopens around Jul 29, and they'll be tested then. Until then they're marked "postponed", never scored zero.
+- Everything (scoreboard, raw answers and the round write-up) is in `benchmark/rodada4-raias-novas/`.
+
 ## 0.4.0 (2026-07-22) — Gemini got eyes: file reading in delegations
 - The Gemini lane is no longer text-only: given the task folder (workdir), Gemini now actually READS project files — same read-only scheme as Codex (reading yes, touching no).
 - What unlocked it: we discovered agy ignores the old config file and only honors permissions in `~/.gemini/antigravity-cli/settings.json` (Daniel created it with read-only rules), and that the task folder must be attached with `--add-dir` (without it agy cannot even see the folder).

@@ -2,6 +2,13 @@
 
 > English version: [CHANGELOG.en.md](CHANGELOG.en.md)
 
+## 2026-07-22 — Rodada 4 do benchmark (parcial): Kimi K3 estreia; Gemini aguarda a cota
+- Testamos duas raias novas nas mesmas duas provas da rodada 3 (o validador com o zod v4 de verdade instalado e o rateio de centavos), com os mesmos corretores ocultos. Só o Kimi K3 conseguiu rodar; os dois Gemini ficaram pra depois.
+- O achado do Kimi K3 (que só recebe texto, sem olhar os arquivos): ele passou na "pegadinha da biblioteca nova" — escreveu a API atual do zod de cabeça e gabaritou (14/14). É só o segundo modelo só-texto a conseguir isso; o outro foi o Grok, na rodada anterior. O "clube da memória fresca" agora tem dois.
+- O problema do Kimi: entrega instável e cara. Metade das execuções morreu (3 de 6) — o modelo pensa demais e estoura o prazo de 5 minutos do provedor; o conserto é aumentar esse prazo. E custou caro: ~US$ 0,14 por tarefa entregue, umas três vezes o Grok.
+- Os dois Gemini (3.1 Pro e 3.6 Flash) não rodaram: a cota da assinatura Google esgotou no dia. Ela reabre por volta de 29/07, e aí eles serão testados. Enquanto isso ficam marcados como "adiado", nunca como nota zero.
+- Tudo (placar, respostas cruas e o relatório da rodada) está em `benchmark/rodada4-raias-novas/`.
+
 ## 0.4.0 (2026-07-22) — O Gemini ganhou olhos: leitura de arquivos nas delegações
 - A raia Gemini deixou de ser só-texto: passando a pasta da tarefa (workdir), o Gemini agora LÊ os arquivos do projeto de verdade — mesmo esquema somente-leitura do Codex (ler pode, mexer não).
 - O que destravou: descobrimos que o agy ignora o arquivo de configuração antigo e só respeita permissões em `~/.gemini/antigravity-cli/settings.json` (o Daniel criou o arquivo com regras só de leitura), e que a pasta da tarefa precisa ser anexada com `--add-dir` (sem isso o agy nem enxerga a pasta).
