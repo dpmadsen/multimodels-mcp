@@ -148,10 +148,16 @@ const server = createServer((req, res) => {
   serveStatic(res, url.pathname);
 });
 
+// openInBrowser helper
+function openInBrowser(address: string): void {
+  const [command, args]: [string, string[]] = process.platform === "darwin" ? ["open", [address]] : process.platform === "win32" ? ["cmd", ["/c", "start", "", address]] : ["xdg-open", [address]];
+  try { spawn(command, args, { stdio: "ignore", detached: true }).unref(); } catch {}
+}
+
 server.listen(PORT, HOST, () => {
   const address = `http://${HOST}:${PORT}`;
   console.log(`Painel do multimodels-mcp aberto em ${address}`);
-  if (process.platform === "darwin" && process.env.MULTIMODELS_NO_OPEN !== "1") {
-    spawn("open", [address], { stdio: "ignore", detached: true }).unref();
+  if (process.env.MULTIMODELS_NO_OPEN !== "1") {
+    openInBrowser(address);
   }
 });
