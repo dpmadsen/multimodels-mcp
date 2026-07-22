@@ -9,6 +9,7 @@
 - Limitação conhecida: no modo automático o Gemini não consegue LER arquivos do projeto (a permissão é negada em silêncio) — então a tarefa delegada precisa levar todo o contexto no próprio texto, igual às raias DeepSeek e GLM. Se acontecer, a mensagem de erro explica o que fazer.
 - O painel mostra o cartão do Gemini com o selo "assinatura", igual ao do Codex.
 - 4 testes automatizados novos, todos os 59 passando. Testado de verdade: pergunta simples e tarefa com contexto no texto, respostas corretas do Flash e do Pro.
+- Revisão cruzada por dois modelos de fora (GPT-5.6 no esforço máximo e GLM) endureceu a raia no mesmo dia: prazos que não empatam mais (a mensagem de erro certa sempre fala), acentos que não quebram no meio, teto de memória na resposta e diagnósticos de erro mais honestos. 61 testes no total.
 
 ## 2026-07-22 — Primeiras contribuições da comunidade: painel multiplataforma e aviso de Node antigo
 - Duas melhorias enviadas pelo Sean Campbell (@rudi193-cmd), que conheceu o projeto pelo Reddit — as primeiras contribuições de fora aceitas no projeto:

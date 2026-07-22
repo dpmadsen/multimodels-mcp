@@ -9,6 +9,7 @@
 - Known limitation: in headless mode Gemini cannot READ project files (the permission is silently denied) — so the delegated task must carry the full context in its own text, just like the DeepSeek and GLM lanes. When it happens, the error message explains what to do.
 - The panel shows the Gemini card with the "subscription" badge, same as Codex.
 - 4 new automated tests, all 59 passing. Really tested: simple question and context-in-text task, correct answers from both Flash and Pro.
+- Cross-review by two outside models (GPT-5.6 at max effort and GLM) hardened the lane the same day: timeouts that no longer tie (the right error message always speaks), accents that no longer break mid-character, a memory cap on responses and more honest error diagnostics. 61 tests total.
 
 ## 2026-07-22 — First community contributions: cross-platform panel and old-Node warning
 - Two improvements contributed by Sean Campbell (@rudi193-cmd), who found the project through Reddit — the first outside contributions accepted into the project:
