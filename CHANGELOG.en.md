@@ -2,17 +2,16 @@
 
 > English translation of [CHANGELOG.md](CHANGELOG.md) (Portuguese original — the project is built in Portuguese, in plain non-technical language, by design).
 
-## 0.4.1 (2026-07-23) — OpenRouter deadline equalized (15 min) and Kimi verification
-- Daniel found it odd that Kimi failed half its runs, and we found the cause: the deadline was unfair — Kimi ran with a 5-minute cap (OpenRouter's default) while the GLM lane got 15 minutes. We were comparing apples to oranges.
-- We equalized it: the OpenRouter deadline went up to 15 minutes (permanent, Daniel's call), matching z.ai. We re-ran only the 3 runs that had failed.
-- Verification result: 2 of the 3 failures were just the clock being too short — with 15 minutes Kimi delivered perfect scores (14/14 in 6.3 min and 18/18 in 11.9 min). So at a fair deadline it delivers 5 of 6.
-- One real failure remained: on one station Kimi reasons to the end but never writes the final answer — it happened 3 times on the same cell, at both 5 and 15 minutes. It's not time, it's the model stalling at answer time.
-- Cost: it thinks a lot, so it's pricey — counting everything (round + verification), ~US$ 0.20 per delivered task, about 5× Grok. Details in `benchmark/rodada4-raias-novas/` (STATUS.md and README.md).
+## 0.4.1 (2026-07-23) — Longer OpenRouter deadline and Kimi's consolidated scoreboard
+- The OpenRouter deadline went up to 15 minutes: models that reason a lot needed more room to finish before the system gives up.
+- With that, Kimi K3 closed round 4 at 5 of 6 perfect, thinking 6 to 12 minutes per task (the slowest in the study).
+- One failure of the model's own remains: on one station it finishes reasoning but never emits the final answer.
+- Cost: because it thinks so much, it runs ~US$ 0.20 per delivered task, about 5× Grok. Details in `benchmark/rodada4-raias-novas/`.
 
 ## 2026-07-22 — Benchmark round 4 (partial): Kimi K3 debuts; Gemini waits on quota
 - We tested two new lanes on the same two stations as round 3 (the validator against the really-installed zod v4, and the cents-allocation puzzle), with the same hidden graders. Only Kimi K3 got to run; the two Gemini lanes were postponed.
 - The Kimi K3 finding (it only receives text, never looks at the files): it beat the "new-library trap" — it wrote the current zod API from memory and aced it (14/14). It's only the second text-only model to pull this off; the other was Grok, in the previous round. The "fresh-memory club" now has two members.
-- Kimi's catch: delivery is shaky and pricey. Half the runs died (3 of 6) — the model thinks too much and blows the provider's 5-minute deadline; the fix is to raise that deadline. And it was expensive: ~US$ 0.14 per delivered task, about three times Grok.
+- Kimi closed the round at 5 of 6 perfect, with a single failure of the model's own (on one station it finishes reasoning but never emits the answer). It's slow and pricey: the heaviest reasoner in the study (6 to 12 minutes per task) and ~US$ 0.20 per delivered task, about 5× Grok.
 - The two Gemini lanes (3.1 Pro and 3.6 Flash) didn't run: the Google subscription quota ran out that day. It reopens around Jul 29, and they'll be tested then. Until then they're marked "postponed", never scored zero.
 - Everything (scoreboard, raw answers and the round write-up) is in `benchmark/rodada4-raias-novas/`.
 

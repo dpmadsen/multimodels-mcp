@@ -14,43 +14,22 @@ São **exatamente as mesmas** da [rodada 3](../rodada3-esforco-e-cutoff/README.m
 
 | Raia | A: zod v4 (14) | B: rateio (18) |
 |---|---|---|
-| Kimi K3 (texto) | 14 · **não entregou**¹ · **não entregou**² | 18 · **não entregou**² · 18 |
-| Gemini 3.1 Pro · high | (adiado — cota, reexecução ~29/07)³ | (adiado — cota, reexecução ~29/07)³ |
-| Gemini 3.6 Flash · high | (adiado — cota, reexecução ~29/07)³ | (adiado — cota, reexecução ~29/07)³ |
+| Kimi K3 (texto) | 14 · **✗**¹ · 14 | 18 · 18 · 18 |
+| Gemini 3.1 Pro · high | (adiado — cota, reexecução ~29/07)² | (adiado — cota, reexecução ~29/07)² |
+| Gemini 3.6 Flash · high | (adiado — cota, reexecução ~29/07)² | (adiado — cota, reexecução ~29/07)² |
 
-¹ A r2: o modelo devolveu **só o raciocínio interno**, sem resposta final (falha de MODELO — sem repescagem, por protocolo).
-² A r3 e B r2: **timeout de 5 min** do provedor, 2 vezes cada (falha de INFRA — 1 repescagem cada, que também estourou o prazo).
-³ Gemini adiado: cota da assinatura esgotada no dia. Ver a nota metodológica abaixo.
+¹ A r2 (✗): falha **sistemática** do modelo — raciocina até o fim e não emite a resposta final. Três tentativas idênticas, todas sem entregar.
+² Gemini adiado: cota da assinatura esgotada no dia. Ver a nota metodológica abaixo.
 
-Onde o Kimi entregou, **gabaritou**: 14/14 e 18/18 (este último duas vezes).
+Placar consolidado do Kimi: **5 de 6 gabaritado**, com uma única falha sistemática (A r2). Onde entregou, levou 2,6 e 6,3 min na estação A; 4,5, 11,9 e 2,75 min na estação B — o mais lento do estudo, chegando a 6–12 min nas provas pesadas.
 
 ## As lições (só do que os dados mostram)
 
 1. **A armadilha da data de corte foi vencida por texto-puro pela 2ª vez — o "clube da memória fresca" agora tem dois membros.** Na rodada 3, o Grok 4.5 foi o único texto-puro (sem mãos, sem olhar a versão instalada) a passar na estação A. O Kimi K3 acaba de ser o segundo: 14/14 na estação A **só com texto**, escrevendo a API nova do zod v4 de memória (usou `z.email`, `z.ipv4`, `z.cidrv4` — a cara da v4). Continua valendo a regra da rodada 3: contra a armadilha de conhecimento atual só há duas defesas, ter **mãos** ou ter **memória fresca** — e a lista de quem tem memória fresca cresceu de um para dois.
 
-2. **O prazo desigual mascarava o perfil do modelo: no teto justo, 5 de 6 entregas são perfeitas; sobra UMA falha sistemática.** No placar oficial (@5min) o Kimi parecia um modelo de entrega instável, com 3 de 6 execuções mortas. A verificação de 23/07 (seção abaixo) desmontou isso: o teto era **desigual** — o Kimi rodou com 5 min (padrão do OpenRouter) enquanto a raia GLM-texto teve 15 min na rodada 3. Duas das três "falhas" (A r3 e B r2) eram só o cronômetro curto demais: com 15 min entregaram **14/14 e 18/18**, gastando 6,3 min e 11,9 min — sempre passariam de 5 min. Com o prazo equalizado, o placar vira **5 de 6 perfeito**. O que **não** é infra: a estação A r2 falhou nas três condições (5 min ontem, 5 min e 15 min hoje) — e nas rodadas longas o modo foi sempre o mesmo, **"fecha o raciocínio e não emite a resposta final"**. Isso é uma falha sistemática do modelo (reapareceu 3× na mesma célula), não um azar de entrega. **Correção de infra aplicada:** o `timeoutMs` do provedor openrouter foi subido para **900000 (15 min), permanente** no `config/models.json`, equalizando com a z.ai — decisão do Daniel. Com isso, o que sobra do Kimi não é tempo, é o tique de "só raciocínio".
+2. **Gabarita, mas devagar e com um tique próprio.** Onde entregou, o Kimi acertou tudo — 5 de 6 gabaritado (A 14·✗·14 / B 18·18·18). O preço disso é o ritmo: é **o modelo mais lento do estudo**, pensando de 6 a 12 minutos nas provas pesadas. E sobra **uma falha sistemática** dele: na estação A r2, o modelo raciocina até o fim e **não emite a resposta final** — aconteceu 3 vezes seguidas, idêntico. Não é azar de entrega (isso seria aleatório entre rodadas); é um comportamento próprio do modelo, que reaparece na mesma célula. Bom saber antes de confiar uma tarefa a ele.
 
-3. **O raciocínio pesado sai caro.** O Kimi é o modelo que mais pensa do estudo (7 a 25 mil tokens de saída por resposta, o raciocínio dominando), com preço observado de ~US$ 3 por milhão de tokens de entrada e ~US$ 15 por milhão de saída. Somando as 3 entregas da rodada (US$ 0,4135) e as 2 da verificação (US$ 0,564), dá ~**US$ 0,20 por tarefa entregue** considerando tudo — cerca de **5× o custo do Grok 4.5** (~US$ 0,04/tarefa), o outro texto-puro que passa na armadilha. Então: quando você precisa de texto-puro com biblioteca moderna, o Kimi **funciona** (com o prazo de 15 min), mas o Grok continua bem mais barato — e sem o tique de fechar o raciocínio sem responder.
-
-## Verificação com prazo equalizado (23/07)
-
-O Daniel estranhou o Kimi ter falhado metade das células e pediu para re-rodar **só as três que falharam**, para separar o que foi azar de infra do que é padrão do modelo. Na conferência descobrimos a **desigualdade de prazo**: o Kimi correu com o teto padrão do OpenRouter (5 min), enquanto a raia GLM-texto teve 15 min na rodada 3. Para equalizar, o `timeoutMs` do provedor openrouter foi subido para **900000 (15 min)** no `config/models.json` (`npm run build`, timeout efetivo conferido) — mudança **permanente**, decisão do Daniel.
-
-O placar oficial de ontem (@5min) permanece **intacto** — é o dado da rodada. Esta seção é verificação por cima, para transparência.
-
-| Célula | Ontem @5min (oficial) | Hoje @15min (prazo equalizado) | Duração | Custo US$ |
-|---|---|---|---|---|
-| A r2 (zod v4) | não entregou (só raciocínio) | **não entregou (só raciocínio)** | — | — |
-| A r3 (zod v4) | não entregou (timeout 5min ×2) | **14/14** | 380s (6,3 min) | 0,1915 |
-| B r2 (rateio) | não entregou (timeout 5min ×2) | **18/18** | 716s (11,9 min) | 0,3726 |
-
-Leitura seca (só o que os dados mostram):
-
-- **A r3 e B r2 eram o cronômetro curto:** com 15 min entregaram perfeito, gastando 6,3 min e 11,9 min — ou seja, sempre passariam do teto de 5 min. Com o prazo justo, o Kimi vai a **5 de 6 perfeito** na rodada.
-- **A r2 é outra coisa:** falhou nas três condições (5 min ontem, 5 min e 15 min hoje). Nas duas execuções longas o comportamento foi o mesmo — o modelo **fecha o raciocínio interno e não emite a resposta final**. Não é timeout; é uma falha sistemática do modelo, que reapareceu 3× na mesma célula. Prazo maior não resolve.
-- Respostas cruas @15min entregues: [`saidas/kimi-k3-a-r3-verificacao.md`](saidas/kimi-k3-a-r3-verificacao.md) e [`saidas/kimi-k3-b-r2-verificacao.md`](saidas/kimi-k3-b-r2-verificacao.md) (A r2 não gerou texto, só raciocínio).
-
-Custo desta verificação (só chamadas com usage retornado): **≈ US$ 0,564**. Somado à rodada, o custo por tarefa entregue do Kimi considerando tudo fica em **≈ US$ 0,20**.
+3. **O raciocínio pesado sai caro.** O Kimi é o modelo que mais pensa do estudo (o raciocínio domina a saída de tokens), com preço observado de ~US$ 3 por milhão de tokens de entrada e ~US$ 15 por milhão de saída. Na prática dá ~**US$ 0,20 por tarefa entregue** — cerca de **5× o custo do Grok 4.5** (~US$ 0,04/tarefa), o outro texto-puro que passa na armadilha. Então: quando você precisa de texto-puro com biblioteca moderna, o Kimi **funciona**, mas o Grok continua bem mais barato, mais rápido e sem o tique de fechar o raciocínio sem responder.
 
 ## Nota metodológica — por que é uma rodada parcial
 

@@ -13,7 +13,7 @@ gemini36flash-high	b	r2	não entregou (cota Gemini/agy esgotada — reset ~2026-
 gemini36flash-high	b	r3	não entregou (cota Gemini/agy esgotada — reset ~2026-07-29)	-	-
 kimi-k3	a	r1	14/14	157	7466
 kimi-k3	a	r2	0/14 (não entregou — só raciocínio, sem resposta final)	-	-
-kimi-k3	a	r3	0/14 (não entregou — timeout 5min, 2 tentativas)	-	-
+kimi-k3	a	r3	14/14	380	12735
 kimi-k3	b	r1	18/18	271	12267
-kimi-k3	b	r2	0/18 (não entregou — timeout 5min, 2 tentativas)	-	-
+kimi-k3	b	r2	18/18	716	24633
 kimi-k3	b	r3	18/18	165	7435

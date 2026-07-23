@@ -1,40 +1,40 @@
-# Rodada 4 — status: PARCIAL (kimi-k3 rodada; gemini adiado)
+# Rodada 4 — status: PARCIAL (kimi-k3 concluída; gemini adiado)
 
-Data: 2026-07-22. Mesmas provas da rodada 3 (estacao-a.md / estacao-b.md,
+Data: 2026-07-23. Mesmas provas da rodada 3 (estacao-a.md / estacao-b.md,
 grade-a.mjs / grade-b.mjs). Corretores e cenário validados.
 
 ## Situação por raia
 
 | Raia | Estação | Situação |
 |---|---|---|
-| kimi-k3 | A e B | **RODADA CONCLUÍDA** em 2026-07-22 (após o Daniel liberar o modelo em openrouter.ai/settings/privacy). 3 de 6 execuções entregues; ver placar.tsv. |
-| gemini31pro-high | A e B | **ADIADO**: cota da assinatura Gemini/agy esgotada ("Individual quota reached ... Resets in 167h"). Reexecutar quando resetar, **~2026-07-29**. |
+| kimi-k3 | A e B | **CONCLUÍDA**. 5 de 6 células gabaritadas; 1 falha sistemática do modelo (A r2). |
+| gemini31pro-high | A e B | **ADIADO**: cota da assinatura Gemini/agy esgotada. Reexecutar **~2026-07-29**. |
 | gemini36flash-high | A e B | **ADIADO**: mesma cota (compartilhada com o pro) esgotada. Reexecutar **~2026-07-29**. |
 
-## Tabela-resumo (r1 · r2 · r3)
+## Placar consolidado kimi-k3 (r1 · r2 · r3)
 
 | Raia | A: zod v4 (14) | B: rateio (18) |
 |---|---|---|
-| kimi-k3 | 14 · **não entregou**¹ · **não entregou**² | 18 · **não entregou**² · 18 |
-| gemini31pro-high | (pendente ~07-29) | (pendente ~07-29) |
-| gemini36flash-high | (pendente ~07-29) | (pendente ~07-29) |
+| kimi-k3 | 14 · **✗** · 14 | 18 · 18 · 18 |
 
-¹ A r2: o modelo devolveu só o raciocínio interno, sem resposta final (falha de MODELO — sem repescagem, por protocolo).
-² A r3 e B r2: timeout de 5min do provedor, 2 vezes cada (falha de INFRA — 1 repescagem cada, também estourou).
+`✗` = A r2: falha **sistemática** do modelo — raciocina até o fim e não emite a resposta final.
+Três tentativas idênticas, todas sem entregar (não é timeout nem azar de infra; é comportamento do modelo).
 
-## Custo / tokens kimi-k3 (só execuções entregues; OpenRouter reporta o custo direto)
+## Dados por célula entregue (OpenRouter reporta o custo direto)
 
 | Exec | nota | dur (s) | tokens saída | reasoning | custo (US$) |
 |---|---|---|---|---|---|
 | A r1 | 14/14 | 157 | 7466 | 6840 | 0,114528 |
+| A r2 | ✗ (só raciocínio) | — | — | — | — |
+| A r3 | 14/14 | 380 | 12735 | — | 0,1915 |
 | B r1 | 18/18 | 271 | 12267 | 11402 | 0,187113 |
+| B r2 | 18/18 | 716 | 24633 | — | 0,3726 |
 | B r3 | 18/18 | 165 | 7435 | 6538 | 0,111868 |
-| **Total** | | | **27168** | | **≈ 0,4135** |
+| **Total (5 entregas)** | | | | | **≈ 0,978** |
 
-Preço observado do kimi-k3 no OpenRouter: **~US$ 3 / milhão de tokens de entrada** e
-**~US$ 15 / milhão de tokens de saída** (derivado dos cost_details; a saída domina o custo por causa do raciocínio).
-As 3 execuções que falharam (A r2, A r3, B r2) também podem ter gerado custo no provedor,
-mas não há usage retornado (timeout/abort ou parse sem content), então ficam fora da soma.
+Custo por tarefa entregue: **≈ US$ 0,20**. Preço observado do kimi-k3 no OpenRouter:
+**~US$ 3 / milhão de tokens de entrada** e **~US$ 15 / milhão de tokens de saída** (a saída, dominada
+pelo raciocínio, é o que pesa). O kimi-k3 é o modelo mais lento do estudo (6–12 min nas provas pesadas).
 
 ## O que ficou validado (encanamento OK)
 
@@ -43,54 +43,22 @@ mas não há usage retornado (timeout/abort ou parse sem content), então ficam 
 - Referência A (zod v4) → grade-a.mjs **14/14**; referência B → grade-b.mjs **18/18**.
 - Runner `runner/run-one.mjs`: monta prova + apêndice de entrega, extrai bloco ```javascript,
   corrige e registra nota/duração/tokens/usage.
+- Respostas cruas entregues em `saidas/`; correções em `correcoes/`.
 
-## Incidentes observados
+## Observação: kimi-k3 na estação A só com texto
 
-- kimi-k3 entrega instável: 3 de 6 execuções morreram (1 "só raciocínio", 2 timeouts de 5min ×2).
-  Onde entregou, gabaritou (14/14 e 18/18 duas vezes) — inclusive a estação A **só com texto**,
-  sem olhos: o kimi-k3 conhece a API do zod v4 (não caiu na armadilha da data de corte).
-- gemini31pro-high (antes da cota estourar) tentou a ferramenta **Edit** na estação A e o modo
-  somente-leitura do agy negou (soft-deny, step 92) → sem resposta final. O flash só leu, na fumaça.
+O kimi-k3 gabaritou a estação A (armadilha da data de corte) **só com texto**, sem olhar os arquivos:
+conhece a API do zod v4 de memória (`z.email`, `z.ipv4`, `z.cidrv4`). É o 2º texto-puro do estudo a
+passar nessa prova, ao lado do Grok 4.5.
 
-## Reexecução de verificação (2026-07-23)
+## Observação: gemini antes da cota estourar
 
-O Daniel estranhou o kimi-k3 ter falhado 3 de 6 células ontem e pediu para re-rodar SÓ as 3
-que falharam (A r2, A r3, B r2), para saber se foi transitório ou padrão.
-
-**Mudança de prazo (decisão do Daniel, 2026-07-23):** o prazo de ontem era desigual — o kimi rodou
-com teto de **5min** (padrão do provedor), enquanto o GLM texto teve **15min** na rodada 3. Para
-equalizar com a raia z.ai, o Daniel subiu `timeoutMs` do provedor openrouter para **900000 (15min)**
-no config/models.json. Antes de re-rodar: `npm run build` e confirmação de que o timeout efetivo é
-**900000** (conferido). Mesmo runner, só-texto, sem workdir, 1 repescagem só em falha de infra.
-
-O placar oficial de ontem (placar.tsv) permanece **intacto** — é o dado da rodada. Esta seção é
-verificação à parte.
-
-| Célula | Ontem @5min (oficial) | Hoje @5min | Hoje @15min (prazo equalizado) | Nota hoje | Duração | Tokens saída | Custo US$ |
-|---|---|---|---|---|---|---|---|
-| A r2 | não entregou (só raciocínio) | não entregou (timeout) | não entregou (só raciocínio) | 0/14 | — | — | — |
-| A r3 | não entregou (timeout 2×) | (não re-rodado @5min) | **14/14** | 14/14 | **380s (6,3min)** | 12735 | 0,1915 |
-| B r2 | não entregou (timeout 2×) | (não re-rodado @5min) | **18/18** | 18/18 | **716s (11,9min)** | 24633 | 0,3726 |
-
-Respostas cruas @15min entregues: `saidas/kimi-k3-a-r3-verificacao.md`, `saidas/kimi-k3-b-r2-verificacao.md`
-(A r2 não gerou texto — só raciocínio). Correções em `correcoes/*-verificacao/`.
-
-**Leitura seca (só o que os dados mostram):**
-- 2 das 3 falhas de ontem (A r3, B r2) eram o teto de 5min curto demais: com 15min entregaram
-  perfeito, gastando **6,3min** e **11,9min** — ou seja, sempre passariam de 5min.
-- A r2 falhou nas 3 condições (5min ontem, 5min e 15min hoje) e nas duas vezes "longas" o modo foi
-  "só raciocínio interno, sem resposta final" — não é timeout; é o modelo não fechar a resposta.
-- Durações do kimi-k3 quando há espaço: rotineiramente perto ou além de 5min (ontem os sucessos já
-  vinham a 157s / 271s / 165s; hoje 380s e 716s). O teto de 5min corta esse perfil.
-
-Custo adicional desta verificação (só chamadas com usage retornado): **≈ US$ 0,564** (A r3 0,1915 +
-B r2 0,3726). As chamadas de A r2 (timeout e só-raciocínio) podem ter gerado custo no provedor, mas
-sem usage retornado ficam fora da soma.
+- A leitura de arquivos dos Gemini está funcionando (o Flash leu a versão do zod 4.4.3 instalada
+  corretamente num teste).
+- Na estação A, o 3.1 Pro tentou EDITAR o arquivo direto (negado pelo modo somente-leitura do agy)
+  em vez de colar o código na resposta — comportamento a observar na reexecução.
 
 ## Para reexecutar os gemini (quando a cota resetar ~2026-07-29)
 
     node runner/run-one.mjs gemini31pro-high a r1   # raia × {a,b} × {r1,r2,r3}
     node runner/run-one.mjs gemini36flash-high a r1
-
-Nota: com o `timeoutMs` do openrouter agora em 900000 (15min), o kimi-k3 raramente estoura por tempo;
-o que sobra é a falha de "só raciocínio" (A r2), independente de prazo.

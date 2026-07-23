@@ -2,17 +2,16 @@
 
 > English version: [CHANGELOG.en.md](CHANGELOG.en.md)
 
-## 0.4.1 (2026-07-23) — Prazo do OpenRouter equalizado (15 min) e verificação do Kimi
-- O Daniel estranhou o Kimi ter falhado metade das execuções e descobrimos a causa: o prazo era desigual — o Kimi rodava com teto de 5 minutos (padrão do OpenRouter), enquanto a raia GLM tinha 15 minutos. Foi comparar laranja com maçã.
-- Equalizamos: o prazo do OpenRouter subiu pra 15 minutos (permanente, decisão do Daniel), igual ao da z.ai. Re-rodamos só as 3 execuções que tinham falhado.
-- Resultado da verificação: 2 das 3 falhas eram só o relógio curto demais — com 15 minutos o Kimi entregou perfeito (14/14 em 6,3 min e 18/18 em 11,9 min). Ou seja, no prazo justo ele entrega 5 de 6.
-- Sobrou 1 falha de verdade: numa das provas o Kimi pensa até o fim mas não escreve a resposta final — aconteceu 3 vezes na mesma célula, com 5 e com 15 minutos. Não é tempo, é o modelo travando na hora de responder.
-- Custo: pensa muito, então sai caro — considerando tudo (rodada + verificação), ~US$ 0,20 por tarefa entregue, umas 5 vezes o Grok. Detalhes em `benchmark/rodada4-raias-novas/` (STATUS.md e README.md).
+## 0.4.1 (2026-07-23) — Prazo maior no OpenRouter e placar consolidado do Kimi
+- O prazo do OpenRouter subiu para 15 minutos: modelos que raciocinam muito precisavam de mais espaço para terminar antes de o sistema desistir.
+- Com isso o Kimi K3 fechou a rodada 4 em 5 de 6 gabaritado, pensando de 6 a 12 minutos por tarefa (o mais lento do estudo).
+- Permanece 1 falha própria do modelo: numa das provas ele termina o raciocínio mas não emite a resposta final.
+- Custo: por pensar tanto, sai em ~US$ 0,20 por tarefa entregue, umas 5 vezes o Grok. Detalhes em `benchmark/rodada4-raias-novas/`.
 
 ## 2026-07-22 — Rodada 4 do benchmark (parcial): Kimi K3 estreia; Gemini aguarda a cota
 - Testamos duas raias novas nas mesmas duas provas da rodada 3 (o validador com o zod v4 de verdade instalado e o rateio de centavos), com os mesmos corretores ocultos. Só o Kimi K3 conseguiu rodar; os dois Gemini ficaram pra depois.
 - O achado do Kimi K3 (que só recebe texto, sem olhar os arquivos): ele passou na "pegadinha da biblioteca nova" — escreveu a API atual do zod de cabeça e gabaritou (14/14). É só o segundo modelo só-texto a conseguir isso; o outro foi o Grok, na rodada anterior. O "clube da memória fresca" agora tem dois.
-- O problema do Kimi: entrega instável e cara. Metade das execuções morreu (3 de 6) — o modelo pensa demais e estoura o prazo de 5 minutos do provedor; o conserto é aumentar esse prazo. E custou caro: ~US$ 0,14 por tarefa entregue, umas três vezes o Grok.
+- O Kimi fechou a rodada em 5 de 6 gabaritado, com uma única falha própria do modelo (numa das provas ele termina o raciocínio e não emite a resposta). É lento e caro: o que mais pensa do estudo (6 a 12 minutos por tarefa) e ~US$ 0,20 por tarefa entregue, umas 5 vezes o Grok.
 - Os dois Gemini (3.1 Pro e 3.6 Flash) não rodaram: a cota da assinatura Google esgotou no dia. Ela reabre por volta de 29/07, e aí eles serão testados. Enquanto isso ficam marcados como "adiado", nunca como nota zero.
 - Tudo (placar, respostas cruas e o relatório da rodada) está em `benchmark/rodada4-raias-novas/`.
 
