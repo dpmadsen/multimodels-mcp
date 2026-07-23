@@ -2,6 +2,13 @@
 
 > English version: [CHANGELOG.en.md](CHANGELOG.en.md)
 
+## 0.4.1 (2026-07-23) — Prazo do OpenRouter equalizado (15 min) e verificação do Kimi
+- O Daniel estranhou o Kimi ter falhado metade das execuções e descobrimos a causa: o prazo era desigual — o Kimi rodava com teto de 5 minutos (padrão do OpenRouter), enquanto a raia GLM tinha 15 minutos. Foi comparar laranja com maçã.
+- Equalizamos: o prazo do OpenRouter subiu pra 15 minutos (permanente, decisão do Daniel), igual ao da z.ai. Re-rodamos só as 3 execuções que tinham falhado.
+- Resultado da verificação: 2 das 3 falhas eram só o relógio curto demais — com 15 minutos o Kimi entregou perfeito (14/14 em 6,3 min e 18/18 em 11,9 min). Ou seja, no prazo justo ele entrega 5 de 6.
+- Sobrou 1 falha de verdade: numa das provas o Kimi pensa até o fim mas não escreve a resposta final — aconteceu 3 vezes na mesma célula, com 5 e com 15 minutos. Não é tempo, é o modelo travando na hora de responder.
+- Custo: pensa muito, então sai caro — considerando tudo (rodada + verificação), ~US$ 0,20 por tarefa entregue, umas 5 vezes o Grok. Detalhes em `benchmark/rodada4-raias-novas/` (STATUS.md e README.md).
+
 ## 2026-07-22 — Rodada 4 do benchmark (parcial): Kimi K3 estreia; Gemini aguarda a cota
 - Testamos duas raias novas nas mesmas duas provas da rodada 3 (o validador com o zod v4 de verdade instalado e o rateio de centavos), com os mesmos corretores ocultos. Só o Kimi K3 conseguiu rodar; os dois Gemini ficaram pra depois.
 - O achado do Kimi K3 (que só recebe texto, sem olhar os arquivos): ele passou na "pegadinha da biblioteca nova" — escreveu a API atual do zod de cabeça e gabaritou (14/14). É só o segundo modelo só-texto a conseguir isso; o outro foi o Grok, na rodada anterior. O "clube da memória fresca" agora tem dois.

@@ -52,11 +52,45 @@ mas não há usage retornado (timeout/abort ou parse sem content), então ficam 
 - gemini31pro-high (antes da cota estourar) tentou a ferramenta **Edit** na estação A e o modo
   somente-leitura do agy negou (soft-deny, step 92) → sem resposta final. O flash só leu, na fumaça.
 
+## Reexecução de verificação (2026-07-23)
+
+O Daniel estranhou o kimi-k3 ter falhado 3 de 6 células ontem e pediu para re-rodar SÓ as 3
+que falharam (A r2, A r3, B r2), para saber se foi transitório ou padrão.
+
+**Mudança de prazo (decisão do Daniel, 2026-07-23):** o prazo de ontem era desigual — o kimi rodou
+com teto de **5min** (padrão do provedor), enquanto o GLM texto teve **15min** na rodada 3. Para
+equalizar com a raia z.ai, o Daniel subiu `timeoutMs` do provedor openrouter para **900000 (15min)**
+no config/models.json. Antes de re-rodar: `npm run build` e confirmação de que o timeout efetivo é
+**900000** (conferido). Mesmo runner, só-texto, sem workdir, 1 repescagem só em falha de infra.
+
+O placar oficial de ontem (placar.tsv) permanece **intacto** — é o dado da rodada. Esta seção é
+verificação à parte.
+
+| Célula | Ontem @5min (oficial) | Hoje @5min | Hoje @15min (prazo equalizado) | Nota hoje | Duração | Tokens saída | Custo US$ |
+|---|---|---|---|---|---|---|---|
+| A r2 | não entregou (só raciocínio) | não entregou (timeout) | não entregou (só raciocínio) | 0/14 | — | — | — |
+| A r3 | não entregou (timeout 2×) | (não re-rodado @5min) | **14/14** | 14/14 | **380s (6,3min)** | 12735 | 0,1915 |
+| B r2 | não entregou (timeout 2×) | (não re-rodado @5min) | **18/18** | 18/18 | **716s (11,9min)** | 24633 | 0,3726 |
+
+Respostas cruas @15min entregues: `saidas/kimi-k3-a-r3-verificacao.md`, `saidas/kimi-k3-b-r2-verificacao.md`
+(A r2 não gerou texto — só raciocínio). Correções em `correcoes/*-verificacao/`.
+
+**Leitura seca (só o que os dados mostram):**
+- 2 das 3 falhas de ontem (A r3, B r2) eram o teto de 5min curto demais: com 15min entregaram
+  perfeito, gastando **6,3min** e **11,9min** — ou seja, sempre passariam de 5min.
+- A r2 falhou nas 3 condições (5min ontem, 5min e 15min hoje) e nas duas vezes "longas" o modo foi
+  "só raciocínio interno, sem resposta final" — não é timeout; é o modelo não fechar a resposta.
+- Durações do kimi-k3 quando há espaço: rotineiramente perto ou além de 5min (ontem os sucessos já
+  vinham a 157s / 271s / 165s; hoje 380s e 716s). O teto de 5min corta esse perfil.
+
+Custo adicional desta verificação (só chamadas com usage retornado): **≈ US$ 0,564** (A r3 0,1915 +
+B r2 0,3726). As chamadas de A r2 (timeout e só-raciocínio) podem ter gerado custo no provedor, mas
+sem usage retornado ficam fora da soma.
+
 ## Para reexecutar os gemini (quando a cota resetar ~2026-07-29)
 
     node runner/run-one.mjs gemini31pro-high a r1   # raia × {a,b} × {r1,r2,r3}
     node runner/run-one.mjs gemini36flash-high a r1
 
-Nota: o timeout padrão do provedor OpenRouter é 5min. O kimi-k3 com raciocínio pesado estoura isso
-com frequência; se quiser reduzir os "não entregou", subir `timeoutMs` do openrouter no
-config/models.json ajudaria (não foi alterado aqui — protocolo manda usar o runner validado como está).
+Nota: com o `timeoutMs` do openrouter agora em 900000 (15min), o kimi-k3 raramente estoura por tempo;
+o que sobra é a falha de "só raciocínio" (A r2), independente de prazo.

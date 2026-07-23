@@ -65,7 +65,8 @@
         "deepseek/deepseek-v4-pro",
         "x-ai/grok-4.5"
       ],
-      "effortStyle": "openrouter"
+      "effortStyle": "openrouter",
+      "timeoutMs": 900000
     },
     "lmstudio": {
       "type": "openai-compat",

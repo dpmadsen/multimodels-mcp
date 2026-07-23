@@ -1,0 +1,13 @@
+{
+  "name": "estacao-a-validador",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Cenario da Estacao A — validador de configuracao com zod",
+  "scripts": {
+    "test": "node --test testes/"
+  },
+  "dependencies": {
+    "zod": "^4.0.0"
+  }
+}
