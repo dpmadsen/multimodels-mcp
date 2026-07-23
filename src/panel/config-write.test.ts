@@ -37,7 +37,7 @@ function fixture(): ModelsConfig {
       "lmstudio-rede": {
         type: "openai-compat",
         label: "LM Studio (rede)",
-        baseUrl: "http://192.168.68.61:1234/v1",
+        baseUrl: "http://192.168.0.61:1234/v1",
         enabled: true,
         models: [],
       },
@@ -103,14 +103,14 @@ test("rejeita mudança de endereço em provedor de CLI (assinatura, sem endereç
   assert.throws(
     () =>
       applyConfigUpdate(fixture(), {
-        providers: { codex: { baseUrl: "http://192.168.68.70:5000/v1" } },
+        providers: { codex: { baseUrl: "http://192.168.0.70:5000/v1" } },
       }),
     /não pode ser alterado/
   );
   assert.throws(
     () =>
       applyConfigUpdate(fixture(), {
-        providers: { gemini: { baseUrl: "http://192.168.68.70:5000/v1" } },
+        providers: { gemini: { baseUrl: "http://192.168.0.70:5000/v1" } },
       }),
     /não pode ser alterado/
   );
@@ -140,18 +140,18 @@ test("rejeita apelido vazio ou comprido demais", () => {
 
 test("troca o endereço de uma instância do LM Studio", () => {
   const next = applyConfigUpdate(fixture(), {
-    providers: { "lmstudio-rede": { baseUrl: "http://192.168.68.70:5000/v1" } },
+    providers: { "lmstudio-rede": { baseUrl: "http://192.168.0.70:5000/v1" } },
   });
   const rede = next.providers["lmstudio-rede"];
   assert.ok(rede.type === "openai-compat");
-  assert.equal(rede.baseUrl, "http://192.168.68.70:5000/v1");
+  assert.equal(rede.baseUrl, "http://192.168.0.70:5000/v1");
 });
 
 test("rejeita mudança de endereço em provedor de nuvem (tem chave de API)", () => {
   assert.throws(
     () =>
       applyConfigUpdate(fixture(), {
-        providers: { deepseek: { baseUrl: "http://192.168.68.70:5000/v1" } },
+        providers: { deepseek: { baseUrl: "http://192.168.0.70:5000/v1" } },
       }),
     /não pode ser alterado/
   );
@@ -162,6 +162,6 @@ test("rejeita endereço que não é uma URL http válida", () => {
     applyConfigUpdate(fixture(), { providers: { "lmstudio-rede": { baseUrl: "não é url" } } })
   );
   assert.throws(() =>
-    applyConfigUpdate(fixture(), { providers: { "lmstudio-rede": { baseUrl: "ftp://192.168.68.70" } } })
+    applyConfigUpdate(fixture(), { providers: { "lmstudio-rede": { baseUrl: "ftp://192.168.0.70" } } })
   );
 });

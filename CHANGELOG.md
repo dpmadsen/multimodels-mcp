@@ -80,7 +80,7 @@
 - Consertado o endereço da z.ai: a chave de assinatura de coding só funciona no balcão de coding (`/api/coding/paas/v4`). No endereço antigo, dava um erro enganoso de "saldo insuficiente".
 
 ## 2026-07-20 — Segunda instância do LM Studio (outra máquina da rede)
-- Novo provedor "LM Studio (rede)": modelos rodando de graça em outra máquina da rede do Daniel (192.168.68.61), pelo LM Studio dela.
+- Novo provedor "LM Studio (rede)": modelos rodando de graça em outra máquina da rede local, pelo LM Studio dela.
 - O botão "Detectar modelos baixados" do painel agora funciona pra qualquer instância do LM Studio — a do Mac e quantas forem adicionadas depois.
 - Mensagens sob medida quando algo não responde: a instância local sugere ligar o servidor do LM Studio; a da rede lembra de conferir se a outra máquina está ligada e com "Serve on Local Network" ativado.
 - Selo no painel diferencia "grátis · local" de "grátis · rede".

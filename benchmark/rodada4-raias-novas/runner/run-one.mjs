@@ -1,19 +1,19 @@
 // Runner de UMA execução da RODADA 4. Uso:
 //   node run-one.mjs <lane> <estacao a|b> <rodada r1|r2|r3>
 // lane ∈ { gemini31pro-high, gemini36flash-high, kimi-k3 }
-import { runGemini } from "/Users/danielmadsen/Documents/Claude Code/Multimodels/dist/providers/gemini.js";
-import { chatCompletion } from "/Users/danielmadsen/Documents/Claude Code/Multimodels/dist/providers/openai-compat.js";
-import { loadConfig, loadEnvFile } from "/Users/danielmadsen/Documents/Claude Code/Multimodels/dist/config.js";
+import { runGemini } from "/Users/user/multimodels-mcp/dist/providers/gemini.js";
+import { chatCompletion } from "/Users/user/multimodels-mcp/dist/providers/openai-compat.js";
+import { loadConfig, loadEnvFile } from "/Users/user/multimodels-mcp/dist/config.js";
 import { readFileSync, writeFileSync, mkdirSync, cpSync, rmSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 
-const ROOT = "/Users/danielmadsen/Documents/Claude Code/Multimodels";
+const ROOT = "/Users/user/multimodels-mcp";
 const R4 = `${ROOT}/benchmark/rodada4-raias-novas`;
 const R3 = `${ROOT}/benchmark/rodada3-esforco-e-cutoff`;
 const CEN_A = `${R4}/cenario-a`;
 const SAIDAS = `${R4}/saidas`;
 const CORR = `${R4}/correcoes`;
-const SCRATCH = "/private/tmp/claude-501/-Users-danielmadsen-Documents-Claude-Code-Multimodels/369ddde6-01e9-4732-a452-6b93af295127/scratchpad/r4";
+const SCRATCH = "/tmp/claude/369ddde6-01e9-4732-a452-6b93af295127/scratchpad/r4";
 
 loadEnvFile(ROOT);
 const config = loadConfig(ROOT);
