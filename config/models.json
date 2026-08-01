@@ -1,18 +1,24 @@
 {
+  "defaults": {
+    "timeoutMinutes": 15
+  },
   "providers": {
     "codex": {
       "type": "codex-cli",
       "label": "Codex (assinatura ChatGPT)",
+      "fabricante": "openai",
       "enabled": true,
       "models": [
         "gpt-5.6-sol",
         "gpt-5.6-terra",
         "gpt-5.6-luna"
-      ]
+      ],
+      "timeoutMinutes": 20
     },
     "gemini": {
       "type": "gemini-cli",
       "label": "Gemini (assinatura Google AI Pro)",
+      "fabricante": "google",
       "enabled": true,
       "models": [
         "gemini-3.1-pro-high",
@@ -20,6 +26,27 @@
         "gemini-3.6-flash-high",
         "gemini-3.6-flash-low"
       ]
+    },
+    "claude-maos": {
+      "type": "claude-cli",
+      "label": "Claude com mãos (assinatura)",
+      "fabricante": "anthropic",
+      "enabled": true,
+      "models": [
+        "claude-fable-5",
+        "claude-opus-5",
+        "claude-opus-4-8",
+        "claude-sonnet-5"
+      ],
+      "effortOptions": [
+        "low",
+        "medium",
+        "high",
+        "xhigh",
+        "max"
+      ],
+      "maxConcurrent": 1,
+      "timeoutMinutes": 20
     },
     "glm-maos": {
       "type": "claude-cli",
@@ -31,15 +58,49 @@
         "glm-5.2"
       ],
       "maxConcurrent": 1,
-      "timeoutMs": 900000
+      "timeoutMinutes": 15
+    },
+    "deepseek-maos": {
+      "type": "claude-cli",
+      "label": "DeepSeek com mãos",
+      "baseUrl": "https://api.deepseek.com/anthropic",
+      "envKey": "DEEPSEEK_API_KEY",
+      "enabled": true,
+      "models": [
+        "deepseek-v4-pro",
+        "deepseek-v4-flash"
+      ],
+      "maxConcurrent": 1,
+      "timeoutMinutes": 15
+    },
+    "kimi-maos": {
+      "type": "claude-cli",
+      "label": "Kimi com mãos",
+      "baseUrl": "https://api.moonshot.ai/anthropic",
+      "envKey": "MOONSHOT_API_KEY",
+      "enabled": false,
+      "models": [
+        "kimi-k3"
+      ],
+      "maxConcurrent": 1,
+      "timeoutMinutes": 15
     },
     "deepseek": {
       "type": "openai-compat",
       "label": "DeepSeek",
       "baseUrl": "https://api.deepseek.com/v1",
       "envKey": "DEEPSEEK_API_KEY",
-      "enabled": true,
-      "models": []
+      "enabled": false,
+      "models": [
+        "deepseek-v4-pro",
+        "deepseek-v4-flash"
+      ],
+      "effortStyle": "openai",
+      "effortOptions": [
+        "low",
+        "high",
+        "max"
+      ]
     },
     "zai": {
       "type": "openai-compat",
@@ -51,8 +112,12 @@
         "glm-5.2"
       ],
       "maxConcurrent": 1,
-      "timeoutMs": 900000,
-      "effortStyle": "openai"
+      "timeoutMinutes": 15,
+      "effortStyle": "openai",
+      "effortOptions": [
+        "high",
+        "max"
+      ]
     },
     "openrouter": {
       "type": "openai-compat",
@@ -61,12 +126,16 @@
       "envKey": "OPENROUTER_API_KEY",
       "enabled": true,
       "models": [
-        "deepseek/deepseek-v4-flash",
-        "deepseek/deepseek-v4-pro",
-        "x-ai/grok-4.5"
+        "x-ai/grok-4.5",
+        "moonshotai/kimi-k3"
       ],
       "effortStyle": "openrouter",
-      "timeoutMs": 900000
+      "effortOptions": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "timeoutMinutes": 15
     },
     "lmstudio": {
       "type": "openai-compat",
@@ -78,7 +147,7 @@
         "qwen/qwen3.6-35b-a3b"
       ],
       "maxConcurrent": 1,
-      "timeoutMs": 1800000
+      "timeoutMinutes": 30
     },
     "lmstudio-rede": {
       "type": "openai-compat",
@@ -91,7 +160,7 @@
         "qwen/qwen3.6-27b"
       ],
       "maxConcurrent": 1,
-      "timeoutMs": 1800000
+      "timeoutMinutes": 30
     }
   }
 }

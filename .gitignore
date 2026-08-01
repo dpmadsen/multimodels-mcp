@@ -8,6 +8,9 @@ node_modules/
 dist/
 *.log
 
+# Tarefas delegadas em segundo plano (dado de trabalho, não do projeto)
+.multimodels/
+
 # Sistema
 .DS_Store
 

@@ -5,8 +5,7 @@ import { spawn } from "node:child_process";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-
-const TIMEOUT_MS = 10 * 60 * 1000;
+import { resolveTimeoutMs, type CodexProvider, type ModelsConfig } from "../config.js";
 
 // Valores aceitos pelo CLI para "quanto o modelo deve pensar" antes de responder.
 const EFFORT_VALIDOS = ["low", "medium", "high", "xhigh"] as const;
@@ -34,11 +33,15 @@ export function buildCodexArgs(
 }
 
 export async function runCodex(
+  config: ModelsConfig | undefined,
+  provider: CodexProvider | undefined,
   task: string,
   workdir?: string,
   model?: string,
   effort?: string
 ): Promise<string> {
+  // Prazo vem sempre da cascata (provedor → padrão do arquivo → embutido).
+  const timeoutMs = resolveTimeoutMs(config, provider);
   const scratch = await mkdtemp(join(tmpdir(), "multimodels-codex-"));
   const outFile = join(scratch, "last-message.txt");
   try {
@@ -59,8 +62,8 @@ export async function runCodex(
       });
       const timer = setTimeout(() => {
         child.kill("SIGKILL");
-        reject(new Error(`O Codex passou de ${TIMEOUT_MS / 60000} minutos e foi interrompido.`));
-      }, TIMEOUT_MS);
+        reject(new Error(`O Codex passou de ${timeoutMs / 60000} minutos e foi interrompido.`));
+      }, timeoutMs);
       child.on("error", (err: NodeJS.ErrnoException) => {
         clearTimeout(timer);
         if (err.code === "ENOENT") {

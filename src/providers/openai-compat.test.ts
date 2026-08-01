@@ -8,7 +8,11 @@ import {
   chatCompletion,
   DEFAULT_MAX_TOKENS,
 } from "./openai-compat.js";
-import type { OpenAICompatProvider } from "../config.js";
+import type { ModelsConfig, OpenAICompatProvider } from "../config.js";
+
+// Cardápio de mentira sem prazo configurado: os testes daqui não são sobre
+// prazo, então tudo cai no padrão embutido (10 minutos).
+const config: ModelsConfig = { providers: {} };
 
 test("resposta normal devolve o texto e descarta o raciocínio", () => {
   const result = parseChatResponse(
@@ -107,7 +111,7 @@ test("falha de conexão em instância da rede explica o 'Serve on Local Network'
     enabled: true,
     models: ["m"],
   };
-  await assert.rejects(chatCompletion(provider, "m", "oi"), /Serve on Local Network/);
+  await assert.rejects(chatCompletion(config, provider, "m", "oi"), /Serve on Local Network/);
 });
 
 test("falha de conexão na instância local sugere ligar o servidor do LM Studio", async () => {
@@ -118,7 +122,7 @@ test("falha de conexão na instância local sugere ligar o servidor do LM Studio
     enabled: true,
     models: ["m"],
   };
-  await assert.rejects(chatCompletion(provider, "m", "oi"), /lms server start/);
+  await assert.rejects(chatCompletion(config, provider, "m", "oi"), /lms server start/);
 });
 
 test("a requisição envia max_tokens (padrão e configurado)", async () => {
@@ -140,10 +144,10 @@ test("a requisição envia max_tokens (padrão e configurado)", async () => {
       enabled: true,
       models: ["m"],
     };
-    await chatCompletion(provider, "m", "oi");
+    await chatCompletion(config, provider, "m", "oi");
     assert.equal(bodies[0].max_tokens, DEFAULT_MAX_TOKENS);
 
-    await chatCompletion({ ...provider, maxTokens: 8000 }, "m", "oi");
+    await chatCompletion(config, { ...provider, maxTokens: 8000 }, "m", "oi");
     assert.equal(bodies[1].max_tokens, 8000);
   } finally {
     globalThis.fetch = originalFetch;
@@ -175,7 +179,7 @@ test("effortStyle 'openai' manda reasoning_effort no corpo", async () => {
       models: ["m"],
       effortStyle: "openai",
     };
-    await chatCompletion(provider, "m", "oi", { effort: "max" });
+    await chatCompletion(config, provider, "m", "oi", { effort: "max" });
     assert.equal(bodies[0].reasoning_effort, "max");
   } finally {
     globalThis.fetch = originalFetch;
@@ -195,7 +199,7 @@ test("effortStyle 'openrouter' manda reasoning: { effort } no corpo", async () =
       models: ["m"],
       effortStyle: "openrouter",
     };
-    await chatCompletion(provider, "m", "oi", { effort: "high" });
+    await chatCompletion(config, provider, "m", "oi", { effort: "high" });
     assert.deepEqual(bodies[0].reasoning, { effort: "high" });
   } finally {
     globalThis.fetch = originalFetch;
@@ -216,11 +220,117 @@ test("defaultEffort é usado quando a delegação não pede esforço, e opts.eff
       effortStyle: "openai",
       defaultEffort: "medium",
     };
-    await chatCompletion(provider, "m", "oi");
+    await chatCompletion(config, provider, "m", "oi");
     assert.equal(bodies[0].reasoning_effort, "medium");
 
-    await chatCompletion(provider, "m", "oi", { effort: "high" });
+    await chatCompletion(config, provider, "m", "oi", { effort: "high" });
     assert.equal(bodies[1].reasoning_effort, "high");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("esforço padrão do MODELO é usado quando a delegação não pede nada", async () => {
+  const originalFetch = globalThis.fetch;
+  const bodies: Array<Record<string, unknown>> = [];
+  globalThis.fetch = fakeFetchOk(bodies);
+  try {
+    const provider: OpenAICompatProvider = {
+      type: "openai-compat",
+      label: "z.ai (fake)",
+      baseUrl: "http://localhost:9999/v1",
+      enabled: true,
+      models: ["devagar", "rapido"],
+      effortStyle: "openai",
+      effortOptions: ["high", "max"],
+      defaultEffortByModel: { devagar: "max" },
+    };
+    await chatCompletion(config, provider, "devagar", "oi");
+    assert.equal(bodies[0].reasoning_effort, "max");
+
+    // Modelo sem padrão escolhido e sem defaultEffort do provedor:
+    // nada de esforço vai no corpo (vale o padrão do fabricante).
+    await chatCompletion(config, provider, "rapido", "oi");
+    assert.ok(
+      !Object.prototype.hasOwnProperty.call(bodies[1], "reasoning_effort"),
+      "sem padrão escolhido, o corpo não pode levar campo de esforço"
+    );
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("precedência: delegação vence o padrão do modelo, que vence o do provedor", async () => {
+  const originalFetch = globalThis.fetch;
+  const bodies: Array<Record<string, unknown>> = [];
+  globalThis.fetch = fakeFetchOk(bodies);
+  try {
+    const provider: OpenAICompatProvider = {
+      type: "openai-compat",
+      label: "z.ai (fake)",
+      baseUrl: "http://localhost:9999/v1",
+      enabled: true,
+      models: ["m"],
+      effortStyle: "openai",
+      effortOptions: ["high", "max"],
+      defaultEffort: "high",
+      defaultEffortByModel: { m: "max" },
+    };
+    // Padrão do modelo ganha do padrão do provedor.
+    await chatCompletion(config, provider, "m", "oi");
+    assert.equal(bodies[0].reasoning_effort, "max");
+
+    // Pedido da delegação ganha de todo mundo.
+    await chatCompletion(config, provider, "m", "oi", { effort: "high" });
+    assert.equal(bodies[1].reasoning_effort, "high");
+
+    // Modelo sem padrão próprio cai no padrão do provedor.
+    await chatCompletion(config, { ...provider, defaultEffortByModel: {} }, "m", "oi");
+    assert.equal(bodies[2].reasoning_effort, "high");
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("padrão do modelo também sai no formato da OpenRouter (reasoning: { effort })", async () => {
+  const originalFetch = globalThis.fetch;
+  const bodies: Array<Record<string, unknown>> = [];
+  globalThis.fetch = fakeFetchOk(bodies);
+  try {
+    const provider: OpenAICompatProvider = {
+      type: "openai-compat",
+      label: "OpenRouter (fake)",
+      baseUrl: "http://localhost:9999/v1",
+      enabled: true,
+      models: ["x-ai/grok-4.5"],
+      effortStyle: "openrouter",
+      effortOptions: ["low", "medium", "high"],
+      defaultEffortByModel: { "x-ai/grok-4.5": "low" },
+    };
+    await chatCompletion(config, provider, "x-ai/grok-4.5", "oi");
+    assert.deepEqual(bodies[0].reasoning, { effort: "low" });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("sem esforço nenhum configurado, o corpo não leva campo de esforço", async () => {
+  const originalFetch = globalThis.fetch;
+  const bodies: Array<Record<string, unknown>> = [];
+  globalThis.fetch = fakeFetchOk(bodies);
+  try {
+    const provider: OpenAICompatProvider = {
+      type: "openai-compat",
+      label: "z.ai (fake)",
+      baseUrl: "http://localhost:9999/v1",
+      enabled: true,
+      models: ["m"],
+      effortStyle: "openai",
+      effortOptions: ["high", "max"],
+    };
+    await chatCompletion(config, provider, "m", "oi");
+    assert.ok(!Object.prototype.hasOwnProperty.call(bodies[0], "reasoning_effort"));
+    assert.ok(!Object.prototype.hasOwnProperty.call(bodies[0], "reasoning"));
   } finally {
     globalThis.fetch = originalFetch;
   }
@@ -235,7 +345,7 @@ test("pedir esforço num provedor sem effortStyle dá erro amigável citando o p
     models: ["m"],
   };
   await assert.rejects(
-    chatCompletion(provider, "m", "oi", { effort: "high" }),
+    chatCompletion(config, provider, "m", "oi", { effort: "high" }),
     /DeepSeek.*não aceita controle de esforço/
   );
 });
@@ -261,7 +371,7 @@ test("repescagem: erro de rede na 1ª tentativa, sucesso na 2ª (retried: true)"
       enabled: true,
       models: ["m"],
     };
-    const result = await chatCompletion(provider, "m", "oi");
+    const result = await chatCompletion(config, provider, "m", "oi");
     assert.equal(result.text, "ok na 2ª");
     assert.equal(result.retried, true);
     assert.equal(chamadas, 2);
@@ -285,7 +395,7 @@ test("erro 400 não repesca: falha na hora, fetch chamado só 1 vez", async () =
       enabled: true,
       models: ["m"],
     };
-    await assert.rejects(chatCompletion(provider, "m", "oi"), /erro 400/);
+    await assert.rejects(chatCompletion(config, provider, "m", "oi"), /erro 400/);
     assert.equal(chamadas, 1);
   } finally {
     globalThis.fetch = originalFetch;
@@ -311,7 +421,7 @@ test("erro 500 repesca: 1º falha, 2º dá certo (retried: true)", async () => {
       enabled: true,
       models: ["m"],
     };
-    const result = await chatCompletion(provider, "m", "oi");
+    const result = await chatCompletion(config, provider, "m", "oi");
     assert.equal(result.retried, true);
     assert.equal(chamadas, 2);
   } finally {
@@ -334,7 +444,7 @@ test("se as duas tentativas falharem, o erro final avisa que houve 2 tentativas"
       enabled: true,
       models: ["m"],
     };
-    await assert.rejects(chatCompletion(provider, "m", "oi"), /2 tentativas/);
+    await assert.rejects(chatCompletion(config, provider, "m", "oi"), /2 tentativas/);
     assert.equal(chamadas, 2);
   } finally {
     globalThis.fetch = originalFetch;

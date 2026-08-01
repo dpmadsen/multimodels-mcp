@@ -2,6 +2,86 @@
 
 > English translation of [CHANGELOG.md](CHANGELOG.md) (Portuguese original — the project is built in Portuguese, in plain non-technical language, by design).
 
+## 0.11.0 (2026-08-01) — You can now choose how hard Claude thinks
+
+- The "Claude with hands (subscription)" lane gained the same effort control z.ai and OpenRouter already had: you can now say how much the model should think before answering.
+- Five levels: `low`, `medium`, `high`, `xhigh` and `max`. You pick them in the panel, on that lane's card, one level per model — exactly like the other engines. You can also ask for a level on the spot, in the delegation itself.
+- **We measured it, and this time it really works.** Same little reasoning puzzle, same model (`claude-sonnet-5`), only the level changed: on `low` the answer came out at 168 tokens in 6 seconds and cost US$ 0.2629; on `max`, 1321 tokens in 16 seconds and US$ 0.2803. That is nearly 8× the thinking and nearly 3× the time, for 6.6% more cost. Both answers were correct; the `max` one was better organised.
+- Why the cost barely moves: on this lane every delegation already starts by loading about 43 thousand tokens of your global configuration. Next to that baggage, the extra thinking hardly shows up on the bill — but it does show up on the clock.
+- No level ships pre-selected. With nothing picked by you, we send nothing at all and Claude Code's own default applies — the house rule is that we don't invent a default without measuring it.
+- **A correction of a mistake of ours in the documentation.** The README claimed the Anthropic protocol "has no effort concept". That was false: it does, and the `claude` program always offered the option. What the 07/31 measurement showed is a different thing — that sending effort to the DeepSeek lanes changes nothing, because the engine on the other end throws it away. The conclusion was right, the explanation was wrong, and it was precisely the wrong explanation that would have stopped us from ever testing it on the Anthropic side.
+- The other "with hands" lanes (GLM, DeepSeek, Kimi) still refuse the effort request, with the same message as always. And that is now declared in the menu rather than written into the code: a lane that lists its levels accepts effort; a lane that doesn't, refuses.
+- 18 new tests (216 in total, all passing).
+
+## 0.10.0 (2026-08-01) — A ticket instead of the dish: your session no longer hangs
+- Before, delegating a task meant standing in front of the kitchen: while the other model worked (on the "with hands" lanes and on the Celta that can take 20 or 30 minutes), your session hung there and you couldn't do anything else.
+- Now the waiter hands you a **ticket**. You order, he answers immediately with the task number (`tarefa-1`, `tarefa-2`...) and the session stays yours. The dish is cooked in the background.
+- To collect the result later there is a new tool, `check_task`: with the number it returns the finished answer (or says it's still running, or shows the error); with no number it lists the tasks, newest first, with the opening of each request so you can tell them apart.
+- The guidance is written into the tool itself: once you've delegated, go do something else and check back later. Polling in a loop only burns context for nothing.
+- **The result is stored in a file**, not just in the session's memory. Close Claude Code, sleep on it, come back tomorrow: the answer is still there. The 50 most recent tasks are kept; the oldest drops off as a new one arrives, so the folder never grows forever. Everything lives in `.multimodels/tarefas/` inside the project, and is not committed.
+- A default is a default, not a straitjacket: for a twenty-second task, pass `"wait": true` in the delegation and the waiter waits right there and brings the dish, exactly as before.
+- An honest caveat: if you close the session mid-task, nobody will ever record its outcome — the ticket stays stuck on "running" forever. That can't be detected for sure, so once the lane's deadline plus a two-minute grace period has passed, the task starts being shown as **"probably interrupted — the session that started this task was closed"**. It's only how it's presented; the file itself is never altered, and if the answer does arrive, the warning disappears on its own.
+- Nothing changed in how each model is called: a background task goes through exactly the same paths as before, including each provider's queue. Five requests to the Celta still queue up one at a time — they don't become five calls trampling the machine.
+- Refusals stay immediate: asking for effort on a "with hands" lane, or asking for a lane made by the same vendor as the calling program, gets its "no" right away — it never becomes a task that fails half an hour later.
+- Special care under the hood: a loose error in a background task would take down the whole server in the middle of your work. Every error path is caught and becomes the task's "error" state, with the reason written down.
+- 32 new tests (198 in total, all passing).
+
+## 0.9.0 (2026-08-01) — The waiter now recognises who's ordering
+- The server now notices which program is talking to it (Claude Code, Codex, Gemini...) and hides from the menu the lane made by that same vendor.
+- Why: inside Claude Code, asking for the `claude-maos` lane is an expensive detour — it leaves your session, opens a fresh Claude Code on the outside, reloads roughly 31 thousand tokens of your global configuration, and spends from the very subscription you are already using. The same goes for asking for `codex` from inside Codex. In those cases the right tool is the program's own native subagent, which is already right there, with none of that overhead.
+- The point of this project is the exact opposite: crossing the border. Calling GPT, Gemini or GLM from inside Claude Code, and calling Claude from inside Codex. All of that stays wide open.
+- It is now the machine's rule, not the user's discipline: besides vanishing from the menu, the lane is also refused if the id is typed by hand, with a message explaining why and pointing at the native subagent.
+- It never hides silently: whenever a lane leaves the menu, a note at the bottom says which one left and why. A lane that disappears with no explanation looks like a broken lane.
+- When in doubt, nothing is hidden. If the calling program doesn't identify itself, or is one we don't know, the whole menu comes through. The rule is a saving, not a lock.
+- You can force it: the `MULTIMODELS_ANFITRIAO` environment variable outranks the server's guess. Set it to `nenhum` (or `none`) and the whole rule switches off, bringing everything back; set it to a vendor name (`openai`, `anthropic`, `google`) and that counts as the calling program. Handy for testing and for fixing a wrong guess without recompiling anything.
+- Only three lanes joined the rule: `codex` (openai), `gemini` (google) and `claude-maos` (anthropic). The "with hands" lanes of the other engines (GLM, DeepSeek, Kimi) only use Claude Code as the chassis — the model answering is from another vendor — so they never disappear.
+- The server also started noting down, once per session, the name of the program that connected. That is how we check in practice whether it guessed the caller right.
+- 25 new tests (166 in total, all passing).
+
+## 0.8.0 (2026-08-01) — Claude with hands, on the subscription
+- A new lane was born, "Claude com mãos (assinatura)": you can now delegate tasks to Anthropic's own models, and they arrive with the same hands as the other lanes — they read the project files, grep the code and run the tests, but cannot edit anything.
+- New ids: `claude-maos:claude-fable-5`, `claude-maos:claude-opus-5`, `claude-maos:claude-opus-4-8` and `claude-maos:claude-sonnet-5`.
+- It comes in through your Claude Code subscription, with the login you already use. There is no key to fill in, so its card in the panel shows no key field — just the on/off switch, the model list and the deadline.
+- The cost, no fine print: "no key" does not mean "free". This lane spends from the same subscription allowance your own conversation is spending. And because it uses your real Claude Code setup, every delegation starts out carrying about 31 thousand tokens of baggage (the global instructions you have configured) before it even looks at the task. It is the most allowance-hungry lane on the menu — use it when the quality is worth it.
+- Under the hood it is the same engine that already served GLM, DeepSeek and Kimi with hands: the only difference is the absence of an address and a key in the menu, which is the agreed way of saying "this one comes in on the subscription".
+- Safety lock: before opening the delegation, the server wipes from the environment any Anthropic key left lying around. Without that, a forgotten key on your computer would make the delegation get billed on the side, quietly, instead of using the subscription.
+- 21 new tests (141 in total, all passing).
+
+## 0.7.1 (2026-07-31) — The panel stops serving a stale screen after an update
+- Before, the browser decided on its own how long to keep the panel page — and would show the old version even after a new one was built, hiding freshly added features until you forced a reload.
+- Now the panel tells the browser: the page itself is never cached, while the inner files (which get a new name on every build) can be. Open the panel, see the current version.
+- 2 new tests (120 in total, all passing).
+
+## 0.7.0 (2026-07-31) — Reasoning effort per model
+- You can now choose, in the panel, how hard each model should "think" before answering: one can take its time crafting the answer while another replies fast, each on its own setting.
+- The choice sits next to the model's name, in the card's list of enabled models. It's a little drop-down list: pick a level and it applies right away.
+- The levels are shown with the name each vendor uses, untranslated, because that is exactly the name their machine understands. z.ai offers `high` and `max`; OpenRouter offers `low`, `medium` and `high`; DeepSeek offers `low`, `high` and `max`.
+- The first item on the list is always "vendor default": pick it and we ask for nothing, so whatever the vendor does on its own applies.
+- This control only exists on the engines that accept the setting. Codex, Gemini, the "with hands" lanes and LM Studio stay exactly as they were — no selector even appears.
+- If a delegation asks for a specific effort at call time, that request outranks the default picked in the panel. With no request, the model's default applies; with no default, the vendor's own applies.
+- Removing a model from the list removes its effort choice along with it, so no leftovers stay in the file.
+- Vendor caveat: on `deepseek-v4-pro`, DeepSeek still treats `low` as if it were `high` — picking `low` there changes the bill, not the amount of reasoning. They expect to fix it in August 2026. On `deepseek-v4-flash` all three levels work.
+- 18 new tests (118 in total, all passing).
+
+## 0.6.0 (2026-07-31) — DeepSeek and Kimi with hands
+- The "with hands" lane (where the model reads the project files and runs the tests, but cannot edit anything) is no longer GLM-only: DeepSeek and Kimi now have one each.
+- New ids: `deepseek-maos:deepseek-v4-pro`, `deepseek-maos:deepseek-v4-flash` and `kimi-maos:kimi-k3`.
+- Both start switched off in the panel, because the keys don't exist yet. Just flip the card's switch once the key is ready.
+- The DeepSeek one uses the same DeepSeek key already in .env (it is pay-per-use, charged per call).
+- The Kimi one uses a new key, the official Moonshot one (platform.kimi.ai) — not the same OpenRouter key we already use for Kimi without hands. It goes in .env under the name `MOONSHOT_API_KEY`.
+- The with-hands cards now have a key field in the panel: you can paste the key right there, no file to open. As always, the panel only shows the last 4 characters.
+- Really tested with a DeepSeek key: the lane read the project README and answered correctly. The caveat their docs raised (asking for Pro and silently getting Flash) **did not hold**: a wrong model name returns a clear error listing the valid names, and each name serves the model asked for — confirmed by the API's own usage report, not by the model's word.
+- 15 new tests (100 in total, all passing).
+
+## 0.5.0 (2026-07-31) — Execution deadline adjustable from the panel
+- You can now choose, straight from the panel, how long to wait before giving up on a delegation — no need to open any file.
+- A new "Execution deadline" card sits at the top of the panel: the number there applies to every engine.
+- Each engine also got its own deadline field. Leave it empty and it follows the default at the top; type a number and only that engine changes.
+- The deadline is in minutes, from 1 to 120. Type anything outside that (or a letter) and the panel says so in plain language and saves nothing.
+- Before this, two engines ignored the configuration and had 10 minutes hard-wired inside (Codex and Gemini). Now all four obey what the panel says.
+- The deadlines that already existed were kept, just rewritten in minutes: GLM, z.ai and OpenRouter at 15 minutes, the two LM Studio machines at 30, and 10 minutes as the general default.
+- 12 new tests (85 in total, all passing).
+
 ## 0.4.1 (2026-07-23) — Longer OpenRouter deadline and Kimi's consolidated scoreboard
 - The OpenRouter deadline went up to 15 minutes: models that reason a lot needed more room to finish before the system gives up.
 - With that, Kimi K3 closed round 4 at 5 of 6 perfect, thinking 6 to 12 minutes per task (the slowest in the study).

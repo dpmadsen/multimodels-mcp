@@ -12,10 +12,25 @@ export interface ProviderState {
   enabled: boolean;
   models: string[];
   baseUrl: string | null;
+  // Prazo próprio deste motor, em minutos. null = segue o padrão geral.
+  timeoutMinutes: number | null;
+  // null = este motor não usa chave (Codex e Gemini entram por assinatura).
+  // Os motores de API e as raias "com mãos" trazem a chave mascarada.
   key: KeyStatus | null;
+  // null = este motor não aceita controle de esforço de raciocínio.
+  // Quando aceita, traz os níveis do fabricante e o esforço já escolhido
+  // para cada modelo (modelo ausente = padrão do fabricante).
+  effortOptions: string[] | null;
+  defaultEffortByModel: Record<string, string> | null;
+}
+
+// Ajustes que valem pra todos os motores que não têm valor próprio.
+export interface DefaultsState {
+  timeoutMinutes: number;
 }
 
 export interface AppState {
+  defaults: DefaultsState;
   providers: ProviderState[];
 }
 
@@ -50,12 +65,31 @@ export function saveKey(envKey: string, value: string): Promise<{ ok: boolean; l
 
 export function updateProvider(
   id: string,
-  change: { enabled?: boolean; label?: string; baseUrl?: string; models?: string[] }
+  change: {
+    enabled?: boolean;
+    label?: string;
+    baseUrl?: string;
+    models?: string[];
+    // null apaga o prazo próprio: o motor volta a seguir o padrão geral.
+    timeoutMinutes?: number | null;
+    // Esforço padrão por modelo; null apaga o do modelo (volta ao padrão
+    // do fabricante).
+    defaultEffortByModel?: Record<string, string | null>;
+  }
 ): Promise<{ ok: boolean }> {
   return request("/api/config", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ providers: { [id]: change } }),
+  });
+}
+
+// Muda os ajustes gerais (hoje só o prazo padrão de execução).
+export function updateDefaults(change: { timeoutMinutes?: number }): Promise<{ ok: boolean }> {
+  return request("/api/config", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ defaults: change }),
   });
 }
 

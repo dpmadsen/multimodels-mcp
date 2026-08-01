@@ -1,6 +1,13 @@
 // Tomada universal: fala com qualquer provedor que use o padrão OpenAI
 // (DeepSeek, z.ai, OpenRouter, LM Studio local).
-import type { OpenAICompatProvider } from "../config.js";
+// A cascata do esforço (resolveEffort) mora no config.ts porque hoje serve
+// também à raia "com mãos" da assinatura — aqui só usamos.
+import {
+  resolveEffort,
+  resolveTimeoutMs,
+  type ModelsConfig,
+  type OpenAICompatProvider,
+} from "../config.js";
 import { naFila } from "./fila.js";
 
 export interface ChatResult {
@@ -12,9 +19,6 @@ export interface ChatResult {
   // deu certo.
   retried?: boolean;
 }
-
-// Prazo padrão por chamada quando o provedor não configura "timeoutMs".
-const TIMEOUT_PADRAO_MS = 5 * 60 * 1000;
 
 // Quanto esperar antes de repescar (tentar de novo) uma chamada que falhou
 // por erro de rede ou por status repescável (429 / 5xx).
@@ -194,6 +198,7 @@ async function chamarComRepescagem(
 }
 
 export async function chatCompletion(
+  config: ModelsConfig | undefined,
   provider: OpenAICompatProvider,
   model: string,
   prompt: string,
@@ -205,11 +210,12 @@ export async function chatCompletion(
     );
   }
 
-  const effortEfetivo = opts?.effort ?? provider.defaultEffort;
+  const effortEfetivo = resolveEffort(provider, model, opts?.effort);
   const extraEsforco =
     effortEfetivo && provider.effortStyle ? corpoDeEsforco(provider.effortStyle, effortEfetivo) : {};
 
-  const timeoutMs = provider.timeoutMs ?? TIMEOUT_PADRAO_MS;
+  // Prazo vem sempre da cascata (provedor → padrão do arquivo → embutido).
+  const timeoutMs = resolveTimeoutMs(config, provider);
 
   // A baseUrl é única por provedor, então serve de chave da fila.
   return naFila(provider.baseUrl, provider.maxConcurrent, () =>

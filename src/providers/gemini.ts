@@ -7,10 +7,14 @@ import { spawn } from "node:child_process";
 import { accessSync, constants, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import {
+  resolveTimeoutMs,
+  TIMEOUT_PADRAO_MINUTOS,
+  type GeminiProvider,
+  type ModelsConfig,
+} from "../config.js";
 
-const TIMEOUT_MS = 10 * 60 * 1000;
-
-// Teto de memória da saída (a delegação pode durar até 10 minutos):
+// Teto de memória da saída (a delegação pode durar muitos minutos):
 // stderr guarda só um rabo rolante — usamos apenas o final (slice(-500) e as
 // regexes de diagnóstico), então mais que isso é desperdício.
 const MAX_STDERR_CHARS = 8192;
@@ -33,19 +37,23 @@ export function resolveAgyBinary(): string {
 
 // Monta os argumentos passados ao `spawn(agy, args)` — função pura, sem
 // efeitos colaterais, pra ficar fácil de testar. Não inclui o próprio executável.
-export function buildGeminiArgs(task: string, opts: { model?: string; effort?: string; workdir?: string } = {}): string[] {
+export function buildGeminiArgs(
+  task: string,
+  opts: { model?: string; effort?: string; workdir?: string; timeoutMs?: number } = {}
+): string[] {
   if (opts.effort !== undefined) {
     // No agy o esforço faz parte do nome do modelo (sufixo -low/-medium/-high).
     throw new Error(
       'Para o Gemini, escolha o esforço pelo sufixo do modelo (ex.: "gemini:gemini-3.1-pro-high" ou "gemini:gemini-3.6-flash-low") em vez do campo "effort".'
     );
   }
-  // --print-timeout: damos ao agy 11m de propósito, um minuto a mais que o nosso
-  // kill de 10m. Assim o agy vira só a rede de segurança e nunca é o primeiro a
-  // desistir — se fossem iguais e ele vencesse a corrida, sairia com código 0 e
-  // stdout vazio, e o usuário levaria uma mensagem enganosa. Do nosso jeito, a
-  // mensagem clara de "passou de 10 minutos" é sempre a que fala.
-  const args: string[] = ["--mode", "plan", "--print-timeout", "11m"];
+  // --print-timeout: damos ao agy sempre um minuto a mais que o nosso kill.
+  // Assim o agy vira só a rede de segurança e nunca é o primeiro a desistir —
+  // se fossem iguais e ele vencesse a corrida, sairia com código 0 e stdout
+  // vazio, e o usuário levaria uma mensagem enganosa. Do nosso jeito, a
+  // mensagem clara de "passou de X minutos" é sempre a que fala.
+  const minutos = Math.round((opts.timeoutMs ?? TIMEOUT_PADRAO_MINUTOS * 60 * 1000) / 60000);
+  const args: string[] = ["--mode", "plan", "--print-timeout", `${minutos + 1}m`];
   if (opts.model) {
     args.push("--model", opts.model);
   }
@@ -59,7 +67,16 @@ export function buildGeminiArgs(task: string, opts: { model?: string; effort?: s
   return args;
 }
 
-export async function runGemini(task: string, workdir?: string, model?: string, effort?: string): Promise<string> {
+export async function runGemini(
+  config: ModelsConfig | undefined,
+  provider: GeminiProvider | undefined,
+  task: string,
+  workdir?: string,
+  model?: string,
+  effort?: string
+): Promise<string> {
+  // Prazo vem sempre da cascata (provedor → padrão do arquivo → embutido).
+  const timeoutMs = resolveTimeoutMs(config, provider);
   // Validamos a pasta antes do spawn: se ela não existir, o spawn falharia com
   // ENOENT e a mensagem de erro culparia o agy ("não encontrei o programa agy"),
   // um diagnóstico errado. Melhor apontar direto para a pasta inexistente.
@@ -67,7 +84,7 @@ export async function runGemini(task: string, workdir?: string, model?: string, 
     throw new Error(`A pasta indicada em workdir não existe: ${workdir}`);
   }
   return await new Promise<string>((resolve, reject) => {
-    const child = spawn(resolveAgyBinary(), buildGeminiArgs(task, { model, effort, workdir }), {
+    const child = spawn(resolveAgyBinary(), buildGeminiArgs(task, { model, effort, workdir, timeoutMs }), {
       cwd: workdir ?? process.cwd(),
       // stdin fechado ("ignore"): sem isso o agy fica esperando
       // entrada para sempre e a delegação trava.
@@ -87,8 +104,8 @@ export async function runGemini(task: string, workdir?: string, model?: string, 
     const timer = setTimeout(() => {
       mortoPorPrazo = true;
       child.kill("SIGKILL");
-      reject(new Error(`O Gemini passou de ${TIMEOUT_MS / 60000} minutos e foi interrompido.`));
-    }, TIMEOUT_MS);
+      reject(new Error(`O Gemini passou de ${timeoutMs / 60000} minutos e foi interrompido.`));
+    }, timeoutMs);
     child.stdout.on("data", (chunk: string) => {
       stdout += chunk;
       if (stdout.length > MAX_STDOUT_CHARS) {

@@ -2,6 +2,8 @@
 // e o status de cada um (chave configurada, local, etc.).
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { ModelsConfig } from "../config.js";
+import { filtrarRaiasDoAnfitriao, linhaDeOmissao } from "../anfitriao.js";
+import { fabricanteDaSessao } from "../anfitriao-sessao.js";
 
 export function registerListModels(server: McpServer, getConfig: () => ModelsConfig): void {
   server.registerTool(
@@ -15,9 +17,14 @@ export function registerListModels(server: McpServer, getConfig: () => ModelsCon
     async () => {
       // Relê o cardápio a cada chamada: mudanças feitas no painel valem na hora.
       const config = getConfig();
+      // Regra do fabricante: a raia do mesmo fabricante do programa que está
+      // chamando não entra no cardápio (lá o barato é o subagente nativo).
+      // O nome do cliente só existe depois do aperto de mão, por isso é lido
+      // aqui dentro, na hora da chamada.
+      const habilitadas = Object.entries(config.providers).filter(([, p]) => p.enabled);
+      const { visiveis, escondidas } = filtrarRaiasDoAnfitriao(habilitadas, fabricanteDaSessao(server));
       const lines: string[] = ["Modelos disponíveis para delegação (use o id com delegate_task):", ""];
-      for (const [providerId, provider] of Object.entries(config.providers)) {
-        if (!provider.enabled) continue;
+      for (const [providerId, provider] of visiveis) {
         if (provider.type === "codex-cli" || provider.type === "gemini-cli") {
           lines.push(`- id: ${providerId} — ${provider.label} [CLI local, sem chave]`);
           for (const model of provider.models ?? []) {
@@ -26,10 +33,15 @@ export function registerListModels(server: McpServer, getConfig: () => ModelsCon
           continue;
         }
         if (provider.type === "claude-cli") {
-          // Raia "com mãos": CLI local, mas precisa da chave do motor no .env.
-          const status = process.env[provider.envKey]
-            ? `CLI local + chave ${provider.envKey}: chave OK`
-            : `CLI local + chave ${provider.envKey}: SEM CHAVE — preencher ${provider.envKey} no .env`;
+          // Raia "com mãos": CLI local. Com envKey, precisa da chave do motor
+          // no .env; sem envKey, entra pela assinatura do Claude Code (como o
+          // Codex e o Gemini fazem com as assinaturas deles).
+          const envKey = provider.envKey;
+          const status = !envKey
+            ? "CLI local, assinatura do Claude Code, sem chave"
+            : process.env[envKey]
+              ? `CLI local + chave ${envKey}: chave OK`
+              : `CLI local + chave ${envKey}: SEM CHAVE — preencher ${envKey} no .env`;
           for (const model of provider.models) {
             lines.push(`- id: ${providerId}:${model} — ${provider.label} [${status}]`);
           }
@@ -48,6 +60,9 @@ export function registerListModels(server: McpServer, getConfig: () => ModelsCon
           lines.push(`- id: ${providerId}:${model} — ${provider.label} [${status}]`);
         }
       }
+      // Nunca esconder em silêncio: se algo saiu do cardápio, o aviso explica.
+      const aviso = linhaDeOmissao(escondidas);
+      if (aviso) lines.push("", aviso);
       return { content: [{ type: "text", text: lines.join("\n") }] };
     }
   );

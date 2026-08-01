@@ -4,6 +4,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ProviderCard } from "@/components/ProviderCard";
+import { DefaultsCard } from "@/components/DefaultsCard";
 import { getState, type AppState } from "@/lib/api";
 
 export default function App() {
@@ -46,10 +47,15 @@ export default function App() {
 
       {!state && !error && <p className="text-muted-foreground">Carregando…</p>}
 
+      {state && (
+        <DefaultsCard defaults={state.defaults} onChanged={refresh} onError={handleError} />
+      )}
+
       {state?.providers.map((provider) => (
         <ProviderCard
           key={provider.id}
           provider={provider}
+          defaultTimeoutMinutes={state.defaults.timeoutMinutes}
           onChanged={refresh}
           onError={handleError}
         />

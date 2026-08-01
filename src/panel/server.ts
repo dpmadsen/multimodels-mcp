@@ -11,6 +11,8 @@ import { loadConfig, loadEnvFile, projectRoot } from "../config.js";
 import { upsertEnvKey, maskKey } from "./env-file.js";
 import { applyConfigUpdate, saveConfig } from "./config-write.js";
 import { fetchOpenRouterCatalog, fetchLmStudioModels, resolveLmStudioProvider } from "./catalog.js";
+import { cacheHeaderFor } from "./cache-headers.js";
+import { stateSnapshot, envKeyPertenceAAlgumProvedor } from "./provider-view.js";
 
 const HOST = "127.0.0.1";
 // Porta padrão 4747; MULTIMODELS_PANEL_PORT permite trocar (ex.: pra testes).
@@ -45,26 +47,9 @@ async function readBody(req: IncomingMessage): Promise<unknown> {
   return text ? JSON.parse(text) : {};
 }
 
-function stateSnapshot(): unknown {
-  const config = loadConfig();
-  const providers = Object.entries(config.providers).map(([id, provider]) => ({
-    id,
-    label: provider.label,
-    type: provider.type,
-    enabled: provider.enabled,
-    models: provider.models ?? [],
-    baseUrl: provider.type === "openai-compat" ? provider.baseUrl : null,
-    key:
-      provider.type === "openai-compat" && provider.envKey
-        ? { envKey: provider.envKey, ...maskKey(process.env[provider.envKey]) }
-        : null,
-  }));
-  return { providers };
-}
-
 async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): Promise<void> {
   if (req.method === "GET" && url.pathname === "/api/state") {
-    sendJson(res, 200, stateSnapshot());
+    sendJson(res, 200, stateSnapshot(loadConfig(), process.env));
     return;
   }
   if (req.method === "POST" && url.pathname === "/api/keys") {
@@ -74,10 +59,7 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
       return;
     }
     const config = loadConfig();
-    const known = Object.values(config.providers).some(
-      (p) => p.type === "openai-compat" && p.envKey === body.envKey
-    );
-    if (!known) {
+    if (!envKeyPertenceAAlgumProvedor(config, body.envKey)) {
       sendJson(res, 400, { error: `A variável "${body.envKey}" não pertence a nenhum provedor configurado.` });
       return;
     }
@@ -131,7 +113,10 @@ function serveStatic(res: ServerResponse, pathname: string): void {
     );
     return;
   }
-  res.writeHead(200, { "Content-Type": MIME[extname(finalPath)] ?? "application/octet-stream" });
+  res.writeHead(200, {
+    "Content-Type": MIME[extname(finalPath)] ?? "application/octet-stream",
+    "Cache-Control": cacheHeaderFor(finalPath),
+  });
   res.end(readFileSync(finalPath));
 }
 

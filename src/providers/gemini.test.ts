@@ -2,6 +2,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { buildGeminiArgs, runGemini } from "./gemini.js";
+import type { ModelsConfig } from "../config.js";
+
+// Cardápio de mentira sem prazo configurado: cai no padrão embutido (10 min).
+const config: ModelsConfig = { providers: {} };
 
 test("monta os argumentos básicos: modo plan (somente-leitura), prazo de 11m e tarefa via -p", () => {
   const args = buildGeminiArgs("faça isso");
@@ -34,6 +38,21 @@ test("o prazo do agy (11m) é maior que o nosso kill (10m), pra ele nunca desist
   assert.equal(args[i + 1], "11m");
 });
 
+test("o --print-timeout é sempre o prazo configurado + 1 minuto", () => {
+  const casos: Array<[number, string]> = [
+    [1, "2m"],
+    [10, "11m"],
+    [15, "16m"],
+    [30, "31m"],
+    [120, "121m"],
+  ];
+  for (const [minutos, esperado] of casos) {
+    const args = buildGeminiArgs("t", { timeoutMs: minutos * 60 * 1000 });
+    const i = args.indexOf("--print-timeout");
+    assert.equal(args[i + 1], esperado, `prazo de ${minutos} min deveria virar ${esperado}`);
+  }
+});
+
 test("inclui --add-dir <workdir> quando 'workdir' é passado, antes do -p (tarefa continua última)", () => {
   const args = buildGeminiArgs("faça isso", { model: "gemini-3.6-flash-low", workdir: "/uma/pasta" });
   const i = args.indexOf("--add-dir");
@@ -56,7 +75,7 @@ test("pedir esforço dá erro amigável apontando pro sufixo do modelo (-low/-me
 
 test("workdir inexistente é rejeitado antes do spawn, culpando a pasta (não o agy)", async () => {
   const pastaFalsa = "/caminho/que/nao/existe/multimodels-teste-xyz";
-  await assert.rejects(runGemini("tarefa", pastaFalsa), (err: Error) => {
+  await assert.rejects(runGemini(config, undefined, "tarefa", pastaFalsa), (err: Error) => {
     assert.match(err.message, /não existe/);
     assert.match(err.message, /multimodels-teste-xyz/);
     return true;

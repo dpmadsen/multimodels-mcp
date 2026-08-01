@@ -2,6 +2,86 @@
 
 > English version: [CHANGELOG.en.md](CHANGELOG.en.md)
 
+## 0.11.0 (2026-08-01) — Dá pra escolher o quanto o Claude pensa
+
+- A raia "Claude com mãos (assinatura)" ganhou o mesmo controle de esforço que a z.ai e a OpenRouter já tinham: agora dá pra dizer o quanto o modelo deve pensar antes de responder.
+- São cinco níveis: `low`, `medium`, `high`, `xhigh` e `max`. Escolhe-se no painel, no cartão dessa raia, um nível para cada modelo — igualzinho aos outros motores. Também dá pra pedir na hora, na própria delegação.
+- **A gente mediu, e desta vez funciona de verdade.** Mesma perguntinha de raciocínio, mesmo modelo (`claude-sonnet-5`), só mudando o nível: no `low` a resposta saiu com 168 tokens em 6 segundos e custou US$ 0,2629; no `max`, 1321 tokens em 16 segundos e US$ 0,2803. Ou seja: quase 8 vezes mais raciocínio e quase 3 vezes mais tempo, por 6,6% a mais de custo. As duas respostas estavam certas; a do `max` veio mais bem organizada.
+- Por que o custo quase não muda: nessa raia cada delegação já começa carregando cerca de 43 mil tokens da sua configuração global. Perto dessa bagagem, o que o modelo pensa a mais pesa pouco no bolso — mas pesa no relógio.
+- Nenhum nível vem escolhido de fábrica. Sem escolha sua, a gente não manda nada e vale o padrão do próprio Claude Code — a regra da casa é não inventar padrão sem medir.
+- **Correção de um erro nosso na documentação.** O README afirmava que o protocolo da Anthropic "não tem conceito de esforço". Era falso: tem, e o programa `claude` sempre ofereceu essa opção. O que a medição de 31/07 mostrou é outra coisa — que mandar esforço para as raias do DeepSeek não muda nada, porque o motor do outro lado joga fora. A conclusão estava certa, a explicação estava errada, e era justamente a explicação errada que faria a gente nunca testar do lado da Anthropic.
+- As outras raias "com mãos" (GLM, DeepSeek, Kimi) continuam recusando o pedido de esforço, com o mesmo recado de sempre. E agora isso é declarado no cardápio, não escrito no código: a raia que lista os níveis dela aceita; a que não lista, recusa.
+- 18 testes novos (216 no total, todos passando).
+
+## 0.10.0 (2026-08-01) — A senha em vez do prato: sua sessão não trava mais
+- Antes, delegar uma tarefa era ficar de pé na frente da cozinha: enquanto o outro modelo trabalhava (nas raias "com mãos" e no Celta isso pode levar 20, 30 minutos), a sua sessão ficava pendurada e você não conseguia fazer mais nada.
+- Agora o garçom entrega uma **senha**. Você pede, ele responde na hora com o número da tarefa (`tarefa-1`, `tarefa-2`...) e a sessão continua sua. O prato vai sendo feito por trás.
+- Para pegar o resultado depois existe uma ferramenta nova, a `check_task`: com o número, ela devolve a resposta pronta (ou diz que ainda está rodando, ou mostra o erro); sem número, ela lista as tarefas, da mais recente pra mais antiga, com o comecinho de cada pedido pra você reconhecer qual é qual.
+- A orientação foi escrita na própria ferramenta: depois de delegar, siga trabalhando em outra coisa e volte a consultar mais tarde. Ficar perguntando de novo e de novo em looping só gasta contexto à toa.
+- **O resultado fica guardado em arquivo**, não só na lembrança da sessão. Fechou o Claude Code, foi dormir, voltou amanhã: a resposta ainda está lá. Ficam guardadas as 50 tarefas mais recentes; a mais antiga sai quando entra uma nova, pra pasta não crescer pra sempre. Tudo mora em `.multimodels/tarefas/`, dentro do projeto, e não vai pro repositório.
+- Padrão é padrão, não camisa de força: para uma tarefa de vinte segundos, é só pedir `"wait": true` na delegação que o garçom espera ali mesmo e traz o prato na hora, do jeito que era antes.
+- Ressalva honesta: se você fechar a sessão no meio de uma tarefa, ninguém mais vai anotar o desfecho dela — o papelzinho fica preso em "rodando" pra sempre. Não dá pra saber isso com certeza, então, passado o prazo daquela raia mais dois minutos de folga, a tarefa passa a aparecer como **"provavelmente interrompida — a sessão que iniciou essa tarefa foi fechada"**. É só um aviso na hora de mostrar; o arquivo não é alterado, e se por acaso a resposta chegar, o aviso some sozinho.
+- Nada mudou no jeito de falar com cada modelo: a tarefa em segundo plano passa exatamente pelos mesmos caminhos de antes, inclusive pela fila de cada provedor. Cinco pedidos ao Celta continuam entrando na fila, um de cada vez — não viram cinco chamadas atropelando a máquina.
+- Recusa continua imediata: pedir esforço numa raia "com mãos", ou pedir uma raia do mesmo fabricante do programa que está chamando, dá o "não" na cara na hora — não vira uma tarefa que só falha meia hora depois.
+- Cuidado especial embaixo do capô: um erro solto numa tarefa de segundo plano derrubaria o servidor inteiro no meio do seu trabalho. Todo caminho de erro é capturado e vira o estado "erro" da tarefa, com o motivo escrito ali.
+- 32 testes novos (198 no total, todos passando).
+
+## 0.9.0 (2026-08-01) — O garçom reconhece quem está pedindo
+- O servidor agora repara em qual programa está falando com ele (o Claude Code, o Codex, o Gemini...) e esconde do cardápio a raia do mesmo fabricante desse programa.
+- Por quê: dentro do Claude Code, pedir pra raia `claude-maos` é dar uma volta cara — sai da sua sessão, abre um Claude Code novo por fora, recarrega cerca de 31 mil tokens de configuração global sua e ainda gasta da mesma assinatura que você já está usando. O mesmo vale pra pedir `codex` de dentro do Codex. Nesses casos o certo é o subagente do próprio programa, que já está ali, sem nenhum desses custos.
+- O propósito deste projeto é justamente o contrário: atravessar a fronteira. Chamar o GPT, o Gemini ou o GLM de dentro do Claude Code, e chamar o Claude de dentro do Codex. Isso continua todo mundo liberado.
+- Agora é regra da máquina, não disciplina de quem usa: além de sumir do cardápio, a raia também é recusada se o id for digitado na mão, com um recado explicando o porquê e apontando o subagente nativo.
+- Nunca esconde caladinho: quando alguma raia sai do cardápio, aparece um aviso no rodapé dizendo qual saiu e por quê. Raia que some sem explicação parece raia quebrada.
+- Na dúvida, não esconde nada. Se o programa que está chamando não se identificar, ou for um que a gente não conhece, o cardápio vem inteiro. A regra é uma economia, não uma tranca.
+- Tem como forçar: a variável de ambiente `MULTIMODELS_ANFITRIAO` manda mais que o palpite do servidor. Colocando `nenhum`, a regra inteira desliga e tudo volta a aparecer; colocando o nome de um fabricante (`openai`, `anthropic`, `google`), ele passa a valer como se fosse o programa que está chamando. Serve pra testar e pra consertar um palpite errado sem precisar recompilar nada.
+- Só três raias entraram na regra: `codex` (openai), `gemini` (google) e `claude-maos` (anthropic). As raias "com mãos" dos outros motores (GLM, DeepSeek, Kimi) usam o Claude Code só como carroceria — quem responde é outro fabricante — então elas nunca somem.
+- O servidor também passou a anotar, uma vez por sessão, o nome do programa que se conectou. É assim que a gente confere na prática se ele acertou quem estava chamando.
+- 25 testes novos (166 no total, todos passando).
+
+## 0.8.0 (2026-08-01) — Claude com mãos, pela assinatura
+- Nasceu a raia "Claude com mãos (assinatura)": agora dá pra delegar tarefas pros próprios modelos da Anthropic, e eles chegam com as mesmas mãos das outras raias — leem os arquivos do projeto, procuram no código e rodam os testes, mas não podem editar nada.
+- Ids novos: `claude-maos:claude-fable-5`, `claude-maos:claude-opus-5`, `claude-maos:claude-opus-4-8` e `claude-maos:claude-sonnet-5`.
+- Ela entra pela sua assinatura do Claude Code, com o login que você já usa. Não tem chave pra preencher, e por isso o cartão dela no painel não mostra campo de chave — só o liga/desliga, a lista de modelos e o prazo.
+- Custo, sem letra miúda: "sem chave" não quer dizer "de graça". Essa raia gasta da mesma cota da assinatura que a sua conversa está gastando. E como ela usa a sua configuração de verdade do Claude Code, cada delegação já começa carregando cerca de 31 mil tokens de bagagem (as instruções globais que você tem configuradas) antes mesmo de olhar a tarefa. É a raia mais cara em cota do cardápio — use quando a qualidade compensar.
+- Por dentro, é o mesmo motor que já servia GLM, DeepSeek e Kimi com mãos: a diferença é só a ausência de endereço e de chave no cardápio, que é o combinado pra dizer "essa aqui entra pela assinatura".
+- Trava de segurança: antes de abrir a delegação, o servidor limpa do ambiente qualquer chave da Anthropic que esteja pendurada por ali. Sem isso, uma chave esquecida no seu computador faria a delegação ser cobrada por fora, caladinha, em vez de usar a assinatura.
+- 21 testes novos (141 no total, todos passando).
+
+## 0.7.1 (2026-07-31) — O painel para de mostrar tela velha depois de atualizado
+- Antes, o navegador decidia sozinho por quanto tempo guardar a página do painel — e chegava a mostrar a versão antiga mesmo depois de a nova estar pronta, escondendo funcionalidade recém-adicionada até você fazer um recarregamento forçado.
+- Agora o painel avisa o navegador: a página em si nunca fica guardada, e os arquivos internos (que ganham nome novo a cada versão) podem ficar. Resultado: abriu o painel, viu a versão atual.
+- 2 testes novos (120 no total, todos passando).
+
+## 0.7.0 (2026-07-31) — Esforço de raciocínio por modelo
+- Agora dá pra escolher, no painel, quanto cada modelo deve "pensar" antes de responder: um pode ficar caprichando na resposta e outro respondendo rápido, cada um do seu jeito.
+- A escolha aparece ao lado do nome do modelo, na lista de modelos habilitados do cartão. É uma listinha: você escolhe o nível e pronto, já fica valendo.
+- Os níveis aparecem com o nome que cada fabricante usa, sem tradução, porque é exatamente esse nome que a máquina dele entende. A z.ai oferece `high` e `max`; a OpenRouter oferece `low`, `medium` e `high`; a DeepSeek oferece `low`, `high` e `max`.
+- A primeira opção da lista é sempre "padrão do fabricante": escolhendo ela, a gente não pede nada e vale o que o fabricante já faz por conta própria.
+- Esse controle só existe nos motores que aceitam o ajuste. Codex, Gemini, as raias "com mãos" e o LM Studio continuam exatamente como estavam — nem seletor aparece.
+- Se uma delegação pedir um esforço específico na hora, o pedido dela vale mais que o padrão escolhido no painel. Sem pedido, vale o padrão do modelo; sem padrão, vale o do fabricante.
+- Ao remover um modelo da lista, a escolha de esforço dele some junto, pra não ficar sobra guardada no arquivo.
+- Ressalva de fabricante: no `deepseek-v4-pro` a DeepSeek ainda trata o `low` como se fosse `high` — escolher `low` ali muda a conta, não o tanto de raciocínio. Eles preveem corrigir em agosto/2026. No `deepseek-v4-flash` os três níveis funcionam.
+- 18 testes novos (118 no total, todos passando).
+
+## 0.6.0 (2026-07-31) — DeepSeek e Kimi com mãos
+- A raia "com mãos" (aquela em que o modelo lê os arquivos do projeto e roda os testes, mas não pode editar nada) deixou de ser exclusividade do GLM: agora o DeepSeek e o Kimi também têm a delas.
+- Ids novos: `deepseek-maos:deepseek-v4-pro`, `deepseek-maos:deepseek-v4-flash` e `kimi-maos:kimi-k3`.
+- As duas nascem desligadas no painel, porque ainda falta criar as chaves. É só ligar o interruptor do cartão quando a chave estiver pronta.
+- A do DeepSeek usa a mesma chave da DeepSeek que já está no .env (é paga por uso, cobrada por chamada).
+- A do Kimi usa uma chave nova, a oficial da Moonshot (platform.kimi.ai) — não é a mesma chave da OpenRouter que já usamos pro Kimi sem mãos. Ela vai no .env com o nome `MOONSHOT_API_KEY`.
+- Os cartões das raias com mãos ganharam campo de chave no painel: dá pra colar a chave ali mesmo, sem abrir arquivo nenhum. Como sempre, o painel só mostra os 4 últimos caracteres.
+- Testado de verdade com a chave da DeepSeek: ele leu o README do projeto e respondeu certo. A ressalva que a documentação deles levantava (pedir o modelo grande e receber o barato sem aviso) **não se confirmou**: nome de modelo errado dá erro claro dizendo quais nomes existem, e cada um dos dois nomes entrega o modelo certo — confirmado pelo relatório de consumo da própria API, não pela palavra do modelo.
+- 15 testes novos (100 no total, todos passando).
+
+## 0.5.0 (2026-07-31) — Prazo de execução ajustável no painel
+- Agora dá pra escolher, direto no painel, quanto tempo esperar antes de desistir de uma delegação — sem abrir arquivo nenhum.
+- No topo do painel apareceu o cartão "Prazo de execução": o número ali vale para todos os motores.
+- Cada motor também ganhou seu próprio campo de prazo. Deixando vazio, ele segue o padrão do topo; digitando um número, só aquele motor muda.
+- O prazo é em minutos, de 1 a 120. Se você digitar algo fora disso (ou uma letra), o painel avisa em português e não salva nada.
+- Antes, dois motores ignoravam a configuração e tinham 10 minutos fixos por dentro (o Codex e o Gemini). Agora os quatro obedecem ao que está no painel.
+- Os prazos que já existiam foram mantidos, só passaram a ser escritos em minutos: GLM, z.ai e OpenRouter com 15 minutos, as duas máquinas com LM Studio com 30, e 10 minutos como padrão geral.
+- 12 testes novos (85 no total, todos passando).
+
 ## 0.4.1 (2026-07-23) — Prazo maior no OpenRouter e placar consolidado do Kimi
 - O prazo do OpenRouter subiu para 15 minutos: modelos que raciocinam muito precisavam de mais espaço para terminar antes de o sistema desistir.
 - Com isso o Kimi K3 fechou a rodada 4 em 5 de 6 gabaritado, pensando de 6 a 12 minutos por tarefa (o mais lento do estudo).

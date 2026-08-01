@@ -12,9 +12,13 @@ import { OpenRouterCatalog } from "./OpenRouterCatalog";
 import { LmStudioDetect } from "./LmStudioDetect";
 import { ProviderAddress } from "./ProviderAddress";
 import { ProviderName } from "./ProviderName";
+import { TimeoutField } from "./TimeoutField";
 
 interface Props {
   provider: ProviderState;
+  // Prazo padrão em minutos, mostrado como dica quando este motor não tem
+  // prazo próprio.
+  defaultTimeoutMinutes: number;
   onChanged: () => void;
   onError: (message: string) => void;
 }
@@ -28,10 +32,16 @@ const DESCRIPTIONS: Record<string, string> = {
   lmstudio: "Modelos rodando de graça no seu próprio Mac, pelo LM Studio.",
   "lmstudio-rede": "Modelos rodando de graça em outra máquina da sua rede, pelo LM Studio dela.",
   "glm-maos": "O GLM pilotando um Claude Code descartável: lê o projeto e roda os testes, mas não edita nada. Usa a chave da z.ai.",
+  "deepseek-maos": "O DeepSeek pilotando um Claude Code descartável: lê o projeto e roda os testes, mas não edita nada. Usa a chave oficial da DeepSeek (pago por uso).",
+  "kimi-maos": "O Kimi pilotando um Claude Code descartável: lê o projeto e roda os testes, mas não edita nada. Usa a chave oficial da Moonshot (platform.kimi.ai) — não é a mesma chave da OpenRouter.",
 };
 
-export function ProviderCard({ provider, onChanged, onError }: Props) {
-  async function apply(change: { enabled?: boolean; models?: string[] }) {
+export function ProviderCard({ provider, defaultTimeoutMinutes, onChanged, onError }: Props) {
+  async function apply(change: {
+    enabled?: boolean;
+    models?: string[];
+    defaultEffortByModel?: Record<string, string | null>;
+  }) {
     try {
       await updateProvider(provider.id, change);
       onChanged();
@@ -47,6 +57,33 @@ export function ProviderCard({ provider, onChanged, onError }: Props) {
   function removeModel(model: string) {
     void apply({ models: provider.models.filter((m) => m !== model) });
   }
+
+  // Esforço padrão de um modelo: opção vazia volta ao padrão do fabricante.
+  function changeEffort(model: string, effort: string) {
+    void apply({ defaultEffortByModel: { [model]: effort === "" ? null : effort } });
+  }
+
+  // Prazo próprio deste motor: campo vazio volta a seguir o padrão geral.
+  async function saveTimeout(minutes: number | null) {
+    await updateProvider(provider.id, { timeoutMinutes: minutes });
+    onChanged();
+  }
+
+  // A mesma linha de prazo aparece nos dois formatos de cartão (motores de
+  // API e motores de assinatura), por isso mora numa variável só.
+  const linhaPrazo = (
+    <>
+      <Separator />
+      <TimeoutField
+        title="Prazo de execução"
+        minutes={provider.timeoutMinutes}
+        emptyHint={`usando o padrão (${defaultTimeoutMinutes} min)`}
+        allowEmpty
+        onSave={saveTimeout}
+        onError={onError}
+      />
+    </>
+  );
 
   return (
     <Card className={provider.enabled ? "" : "opacity-60"}>
@@ -93,7 +130,15 @@ export function ProviderCard({ provider, onChanged, onError }: Props) {
           <Separator />
           <div className="space-y-2">
             <p className="text-sm font-medium">Modelos habilitados</p>
-            <ModelList models={provider.models} onRemove={removeModel} />
+            {/* O seletor de esforço só existe nos motores que sabem mandar
+                esse ajuste; nos outros a lista continua igual a sempre. */}
+            <ModelList
+              models={provider.models}
+              onRemove={removeModel}
+              effortOptions={provider.effortOptions ?? undefined}
+              defaultEffortByModel={provider.defaultEffortByModel ?? undefined}
+              onEffortChange={provider.effortOptions ? changeEffort : undefined}
+            />
           </div>
           {provider.id === "openrouter" && (
             <OpenRouterCatalog
@@ -108,17 +153,24 @@ export function ProviderCard({ provider, onChanged, onError }: Props) {
           {(provider.id === "deepseek" || provider.id === "zai") && (
             <AddModelInput placeholder="id do modelo…" onAdd={addModel} />
           )}
+          {linhaPrazo}
         </CardContent>
       )}
       {(provider.type === "codex-cli" ||
         provider.type === "gemini-cli" ||
         provider.type === "claude-cli") && (
         <CardContent className="space-y-4">
+          {/* As raias "com mãos" usam a chave do outro fabricante; o Codex e o
+              Gemini entram por assinatura e não têm chave (aí nada aparece). */}
+          {provider.key && (
+            <KeyField keyStatus={provider.key} onChanged={onChanged} onError={onError} />
+          )}
           <div className="space-y-2">
             <p className="text-sm font-medium">Modelos habilitados</p>
             <ModelList models={provider.models} onRemove={removeModel} />
           </div>
           <AddModelInput placeholder="id do modelo…" onAdd={addModel} />
+          {linhaPrazo}
         </CardContent>
       )}
     </Card>
