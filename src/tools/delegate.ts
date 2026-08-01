@@ -16,21 +16,29 @@ import { chatCompletion } from "../providers/openai-compat.js";
 import { runCodex } from "../providers/codex.js";
 import { runGemini } from "../providers/gemini.js";
 import { runClaudeCli } from "../providers/claude-cli.js";
-import { PASTA_DE_TAREFAS } from "../tarefas/deposito.js";
+import { PASTA_DE_TAREFAS, type SinaisDeProgresso } from "../tarefas/deposito.js";
 import { dispararEmSegundoPlano, mensagemDeSenha } from "../tarefas/execucao.js";
+import { blocoDeParcial } from "../tarefas/texto-parcial.js";
+import { erroComParcial } from "../providers/erro-parcial.js";
 import { NOME_DA_FERRAMENTA_DE_TAREFAS } from "./check-task.js";
 
 // Monta a delegação de verdade. Tudo que é motivo de RECUSA acontece aqui,
 // na hora da montagem — nunca dentro da promessa —, porque em segundo plano
 // uma recusa que só aparecesse depois viraria uma tarefa que falha lá na
 // frente, em vez de um "não" imediato na cara de quem pediu.
+// A delegação recebe (opcionalmente) um jeito de avisar o andamento. Quem liga
+// as duas pontas é AQUI, nesta camada de cima: o motor não sabe o que é tarefa,
+// e o depósito de tarefas não sabe o que é `claude`. Os motores que não têm
+// notícia pra dar simplesmente ignoram o parâmetro.
+type Delegacao = (aoProgredir?: (sinais: SinaisDeProgresso) => void) => Promise<string>;
+
 function montarDelegacao(
   config: ModelsConfig,
   ref: ModelRef,
   task: string,
   workdir: string | undefined,
   effort: string | undefined
-): () => Promise<string> {
+): Delegacao {
   if (ref.provider.type === "claude-cli") {
     const provider = ref.provider;
     // Quem manda é a declaração no cardápio, não o nome da raia. A raia que
@@ -53,8 +61,16 @@ function montarDelegacao(
     // Mesma cascata dos outros motores: pedido → padrão do modelo → padrão da
     // raia. Sem nada escolhido, não mandamos --effort e vale o padrão do CLI.
     const esforcoEfetivo = resolveEffort(provider, ref.model!, effort);
-    return async () => {
-      const text = await runClaudeCli(config, provider, task, workdir, ref.model, esforcoEfetivo);
+    return async (aoProgredir) => {
+      const text = await runClaudeCli(
+        config,
+        provider,
+        task,
+        workdir,
+        ref.model,
+        esforcoEfetivo,
+        aoProgredir
+      );
       const detalhes = [ref.model, "com mãos", esforcoEfetivo ? `esforço: ${esforcoEfetivo}` : undefined].filter(
         Boolean
       );
@@ -177,8 +193,20 @@ export function registerDelegate(server: McpServer, getConfig: () => ModelsConfi
           content: [{ type: "text", text: mensagemDeSenha(tarefa, NOME_DA_FERRAMENTA_DE_TAREFAS) }],
         };
       } catch (err) {
+        const mensagem = `Erro ao delegar: ${err instanceof Error ? err.message : String(err)}`;
+        // No modo síncrono (wait: true) não existe papelzinho pra guardar o
+        // rascunho — ou ele vem junto do erro agora, ou some. Como o motor já
+        // entrega o parcial no erro, aproveitar aqui é de graça.
+        const sobrou = erroComParcial(err);
         return {
-          content: [{ type: "text", text: `Erro ao delegar: ${err instanceof Error ? err.message : String(err)}` }],
+          content: [
+            {
+              type: "text",
+              text: sobrou
+                ? `${mensagem}\n\nMas o trabalho não foi todo perdido: sobrou um rascunho.\n\n${blocoDeParcial(sobrou.parcial, model)}`
+                : mensagem,
+            },
+          ],
           isError: true,
         };
       }

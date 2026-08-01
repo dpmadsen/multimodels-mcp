@@ -17,6 +17,23 @@ import { projectRoot } from "../config.js";
 
 export type EstadoTarefa = "rodando" | "pronta" | "erro";
 
+// Sinais de andamento vindos do motor. É de propósito que este formato NÃO
+// mencione o `claude`: é só "quantos passos, quais ferramentas, quantos
+// tokens", e qualquer motor que saiba dizer isso um dia se encaixa aqui.
+export interface SinaisDeProgresso {
+  // Idas ao modelo (cada ida pode incluir raciocínio, ferramentas e texto).
+  passos: number;
+  // Nome da ferramenta → quantas vezes foi usada.
+  ferramentas: Record<string, number>;
+  tokensSaida: number;
+}
+
+export interface ProgressoDaTarefa extends SinaisDeProgresso {
+  // Quando estes números foram anotados (ISO). Serve pra quem lê saber se o
+  // andamento é fresco ou se parou de chegar notícia.
+  atualizadoEm: string;
+}
+
 export interface Tarefa {
   // Id legível pra gente ("tarefa-1"), não um código embaralhado: o Daniel
   // precisa conseguir digitar isso de volta sem copiar e colar.
@@ -34,6 +51,18 @@ export interface Tarefa {
   prazoMs: number;
   resultado?: string;
   erro?: string;
+  // Andamento enquanto roda (só as raias "com mãos" sabem produzir isto).
+  progresso?: ProgressoDaTarefa;
+  // O que o modelo já tinha escrito quando a tarefa morreu.
+  //
+  // POR QUE um campo dentro do estado "erro", e não um estado novo: a tarefa
+  // que morreu FALHOU — inventar um estado "parcial" faria ela parecer uma
+  // terceira coisa, e a lista, a faxina e o aviso de órfã teriam que aprender
+  // esse estado novo (mais lugares pra errar). Do jeito escolhido, quem não
+  // conhece o campo continua vendo um erro, que é a verdade; e quem mostra o
+  // texto é obrigado a avisar que ele está incompleto. O nome do campo já grita
+  // isso: "parcial" nunca vai ser confundido com "resultado".
+  parcial?: string;
 }
 
 // Pasta de trabalho, na raiz do projeto. Não vai pro repositório (.gitignore).
@@ -184,9 +213,43 @@ export function marcarErro(
   pasta: string,
   id: string,
   erro: string,
+  agora: Date = new Date(),
+  parcial?: string
+): Promise<Tarefa | undefined> {
+  // O parcial só entra se tiver conteúdo de verdade: texto vazio viraria um
+  // aviso de "olha, sobrou algo" apontando pra nada.
+  const sobrou = parcial?.trim() ? parcial : undefined;
+  return mudarEstado(pasta, id, { estado: "erro", erro, resultado: undefined, parcial: sobrou }, agora);
+}
+
+// Anota o andamento SEM mexer no estado nem no "fim" da tarefa: ela continua
+// rodando, e o papelzinho só ganha uma linha a lápis com o andamento. Fica
+// separada do mudarEstado justamente por isso — misturar as duas faria uma
+// tarefa em andamento parecer terminada.
+export async function anotarProgresso(
+  pasta: string,
+  id: string,
+  sinais: SinaisDeProgresso,
   agora: Date = new Date()
 ): Promise<Tarefa | undefined> {
-  return mudarEstado(pasta, id, { estado: "erro", erro, resultado: undefined }, agora);
+  const tarefa = await lerCru(pasta, id);
+  // Tarefa que sumiu (faxina de outra sessão) não é erro: só não há o que
+  // anotar. Mesma regra do mudarEstado.
+  if (!tarefa) return undefined;
+  // Tarefa que já terminou não recebe mais andamento: um recado atrasado do
+  // motor não pode "ressuscitar" o papelzinho já fechado.
+  if (tarefa.estado !== "rodando") return tarefa;
+  const atualizada: Tarefa = {
+    ...tarefa,
+    progresso: {
+      passos: sinais.passos,
+      ferramentas: { ...sinais.ferramentas },
+      tokensSaida: sinais.tokensSaida,
+      atualizadoEm: agora.toISOString(),
+    },
+  };
+  await gravarPorCima(pasta, id, atualizada);
+  return atualizada;
 }
 
 // Como a tarefa é APRESENTADA (o arquivo no disco continua intocado).

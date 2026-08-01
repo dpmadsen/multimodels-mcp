@@ -7,6 +7,7 @@ import { mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  anotarProgresso,
   apresentar,
   criarTarefa,
   faxina,
@@ -213,4 +214,91 @@ test("a folga de 2 minutos vale antes de acusar interrupção", () => {
   const pronta: Tarefa = { ...base, estado: "pronta" };
   assert.equal(provavelmenteInterrompida(pronta, new Date("2027-01-01T00:00:00.000Z")), false);
   assert.equal(apresentar(pronta, new Date("2027-01-01T00:00:00.000Z")).provavelmenteInterrompida, false);
+});
+
+// --- Andamento e texto parcial (0.12.0) ---
+
+const sinais = { passos: 2, ferramentas: { Read: 3, Grep: 1 }, tokensSaida: 420 };
+
+test("anotar progresso guarda passos, ferramentas e tokens sem terminar a tarefa", async () => {
+  const pasta = await pastaNova();
+  const tarefa = await criarTarefa(pasta, dados);
+  const depois = await anotarProgresso(pasta, tarefa.id, sinais, new Date("2026-08-01T10:00:05.000Z"));
+  assert.equal(depois?.estado, "rodando", "anotar andamento não pode encerrar a tarefa");
+  assert.equal(depois?.fim, undefined, "tarefa em andamento não tem hora de fim");
+  assert.equal(depois?.progresso?.passos, 2);
+  assert.deepEqual(depois?.progresso?.ferramentas, { Read: 3, Grep: 1 });
+  assert.equal(depois?.progresso?.tokensSaida, 420);
+  assert.equal(depois?.progresso?.atualizadoEm, "2026-08-01T10:00:05.000Z");
+  // E foi mesmo pro disco, não só pro objeto devolvido.
+  assert.equal((await lerTarefa(pasta, tarefa.id))?.progresso?.passos, 2);
+});
+
+test("o andamento mais novo substitui o anterior", async () => {
+  const pasta = await pastaNova();
+  const tarefa = await criarTarefa(pasta, dados);
+  await anotarProgresso(pasta, tarefa.id, sinais);
+  await anotarProgresso(pasta, tarefa.id, { passos: 5, ferramentas: { Read: 9 }, tokensSaida: 1000 });
+  const lida = await lerTarefa(pasta, tarefa.id);
+  assert.equal(lida?.progresso?.passos, 5);
+  assert.deepEqual(lida?.progresso?.ferramentas, { Read: 9 });
+});
+
+test("o andamento não apaga o que já estava no papelzinho", async () => {
+  const pasta = await pastaNova();
+  const tarefa = await criarTarefa(pasta, dados);
+  await anotarProgresso(pasta, tarefa.id, sinais);
+  const lida = await lerTarefa(pasta, tarefa.id);
+  assert.equal(lida?.modelo, dados.modelo);
+  assert.equal(lida?.resumo, "Resuma este texto");
+  assert.equal(lida?.prazoMs, dados.prazoMs);
+  assert.equal(lida?.inicio, tarefa.inicio);
+});
+
+test("recado atrasado do motor não ressuscita tarefa já terminada", async () => {
+  const pasta = await pastaNova();
+  const tarefa = await criarTarefa(pasta, dados);
+  await marcarPronta(pasta, tarefa.id, "a resposta");
+  await anotarProgresso(pasta, tarefa.id, sinais);
+  const lida = await lerTarefa(pasta, tarefa.id);
+  assert.equal(lida?.estado, "pronta", "a tarefa não pode voltar a rodar");
+  assert.equal(lida?.resultado, "a resposta");
+  assert.equal(lida?.progresso, undefined, "andamento atrasado é descartado");
+});
+
+test("anotar progresso em tarefa que sumiu não dá erro", async () => {
+  const pasta = await pastaNova();
+  assert.equal(await anotarProgresso(pasta, "tarefa-77", sinais), undefined);
+});
+
+test("o andamento sobrevive ao desfecho da tarefa", async () => {
+  const pasta = await pastaNova();
+  const tarefa = await criarTarefa(pasta, dados);
+  await anotarProgresso(pasta, tarefa.id, sinais);
+  await marcarPronta(pasta, tarefa.id, "pronto");
+  const lida = await lerTarefa(pasta, tarefa.id);
+  // Depois de pronta, ainda dá pra ver quantas ferramentas ela usou.
+  assert.equal(lida?.progresso?.passos, 2);
+  assert.equal(lida?.resultado, "pronto");
+});
+
+test("marcar erro guarda o texto parcial quando ele existe", async () => {
+  const pasta = await pastaNova();
+  const tarefa = await criarTarefa(pasta, dados);
+  await marcarErro(pasta, tarefa.id, "passou do prazo", new Date(), "metade da resposta");
+  const lida = await lerTarefa(pasta, tarefa.id);
+  assert.equal(lida?.estado, "erro", "tarefa que morreu continua sendo um erro");
+  assert.equal(lida?.erro, "passou do prazo");
+  assert.equal(lida?.parcial, "metade da resposta");
+  assert.equal(lida?.resultado, undefined, "parcial NUNCA pode virar resultado");
+});
+
+test("parcial vazio ou só espaços não é guardado", async () => {
+  const pasta = await pastaNova();
+  const tarefa = await criarTarefa(pasta, dados);
+  await marcarErro(pasta, tarefa.id, "deu ruim", new Date(), "   \n  ");
+  assert.equal((await lerTarefa(pasta, tarefa.id))?.parcial, undefined);
+  const outra = await criarTarefa(pasta, dados);
+  await marcarErro(pasta, outra.id, "deu ruim", new Date());
+  assert.equal((await lerTarefa(pasta, outra.id))?.parcial, undefined);
 });

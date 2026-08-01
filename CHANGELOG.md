@@ -2,6 +2,19 @@
 
 > English version: [CHANGELOG.en.md](CHANGELOG.en.md)
 
+## 0.12.0 (2026-08-01) — Dá pra ver o prato sendo feito (e o que sobra se ele queimar)
+
+- Até agora, tarefa delegada em segundo plano era uma caixa fechada: você perguntava e só ouvia "ainda está rodando". Vinte minutos assim, sem saber se o modelo estava trabalhando ou travado.
+- **Agora a consulta mostra o andamento.** A `check_task` de uma tarefa que ainda roda diz há quanto tempo ela começou, quantos passos já deu, quais ferramentas usou (`Read 2×, Grep`) e quantos tokens já escreveu. Dá pra saber se está andando sem ter que esperar o fim.
+- **E tarefa que morre não perde mais tudo.** Se o prazo estoura, se a resposta passa do limite de tamanho ou se a coisa é interrompida, o que o modelo já tinha escrito é guardado junto com o erro. Antes, vinte minutos de trabalho viravam zero.
+- **Esse texto salvo vem sempre marcado como rascunho INCOMPLETO**, com o aviso antes e depois dele, e com marcas de onde começa e onde termina. Ele não é resposta: pode parar no meio de uma frase, e o modelo não chegou a revisar. Serve pra você não perder o caminho já andado — para uma resposta de verdade, é só delegar de novo. Na lista de tarefas, esse caso aparece como "erro (com rascunho incompleto)".
+- **Uma coisa que a gente decidiu NÃO fazer, de propósito:** mostrar o texto do modelo ao vivo enquanto ele trabalha normalmente. Modelo que raciocina passa por conclusões no meio do caminho que ele mesmo descarta depois — quem lesse aquilo poderia sair agindo sobre uma ideia que o próprio modelo já tinha abandonado. O rascunho só aparece quando a tarefa morre, que é quando ele é a única coisa que sobrou.
+- Isso tudo vale **só nas raias "com mãos"** (as que rodam o Claude Code por baixo). Codex, Gemini e as raias de API não sabem dar essa notícia; nelas a consulta responde exatamente como antes, e a tarefa que roda avisa honestamente que aquela raia não manda sinal de andamento.
+- Por baixo, o jeito de ler a resposta do programa `claude` mudou: em vez de esperar um documento único no fim, o servidor agora acompanha os avisos que o programa vai dando durante o trabalho. **O texto final que chega até você é exatamente o mesmo de antes** — isso está provado por um teste que compara os dois jeitos de ler lado a lado, usando uma execução de verdade gravada em arquivo.
+- Cuidado com o disco: um trabalho desses gera centenas de avisos por minuto. O andamento é anotado no máximo uma vez a cada 3 segundos (e sempre uma última vez no fim, pra nada se perder), em vez de a cada avisinho.
+- Cuidado com o futuro: se uma atualização do Claude Code passar a mandar um tipo de aviso que a gente não conhece, ou cuspir uma linha estranha no meio, o servidor ignora em silêncio e segue trabalhando. Um formato novo não pode derrubar a sua delegação.
+- 57 testes novos (273 no total, todos passando).
+
 ## 0.11.0 (2026-08-01) — Dá pra escolher o quanto o Claude pensa
 
 - A raia "Claude com mãos (assinatura)" ganhou o mesmo controle de esforço que a z.ai e a OpenRouter já tinham: agora dá pra dizer o quanto o modelo deve pensar antes de responder.

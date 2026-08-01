@@ -1,6 +1,6 @@
 {
   "name": "multimodels-mcp",
-  "version": "0.11.0",
+  "version": "0.12.0",
   "description": "Servidor MCP que permite ao Claude Code delegar tarefas a outros modelos (Codex, DeepSeek, z.ai, OpenRouter, LM Studio)",
   "private": true,
   "type": "module",

@@ -43,8 +43,12 @@ test("monta os argumentos na ordem da receita, com a tarefa logo após -p", () =
     "--mcp-config",
     '{"mcpServers":{}}',
     "--strict-mcp-config",
+    // Desde a 0.12.0 a saída vem em muitas linhas (uma por evento), pra dar
+    // pra acompanhar o andamento sem esperar o fim.
     "--output-format",
-    "json",
+    "stream-json",
+    "--include-partial-messages",
+    "--verbose",
   ]);
 });
 
@@ -72,13 +76,21 @@ test("as ferramentas liberadas são só leitura+verificação: nunca Edit nem Wr
   assert.ok(args.includes("Read"), "precisa liberar Read");
 });
 
-test("usa MCP vazio em modo estrito e saída em JSON", () => {
+test("usa MCP vazio em modo estrito e saída em stream de eventos", () => {
   const args = buildClaudeCliArgs("t", "glm-5.2");
   assert.ok(args.includes("--strict-mcp-config"));
   const i = args.indexOf("--mcp-config");
   assert.equal(args[i + 1], '{"mcpServers":{}}');
   const j = args.indexOf("--output-format");
-  assert.equal(args[j + 1], "json");
+  assert.equal(args[j + 1], "stream-json");
+});
+
+test("pede os pedacinhos ao vivo e o --verbose que o CLI exige junto do stream", () => {
+  const args = buildClaudeCliArgs("t", "glm-5.2");
+  assert.ok(args.includes("--include-partial-messages"), "sem isto não há texto ao vivo pro parcial");
+  // Medido em 2026-08-01: sem --verbose o CLI recusa na hora, com
+  // "When using --print, --output-format=stream-json requires --verbose".
+  assert.ok(args.includes("--verbose"), "o CLI exige --verbose junto do stream-json");
 });
 
 test("a tarefa é passada por -p (é o argumento logo depois de -p)", () => {

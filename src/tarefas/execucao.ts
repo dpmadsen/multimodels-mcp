@@ -8,7 +8,21 @@
 // função que faz a delegação (a mesma que o delegate.ts já usava), justamente
 // pra que as tarefas em segundo plano passem pelos MESMOS caminhos de sempre,
 // incluindo a fila por provedor (maxConcurrent).
-import { criarTarefa, marcarErro, marcarPronta, type Tarefa } from "./deposito.js";
+import {
+  anotarProgresso,
+  criarTarefa,
+  marcarErro,
+  marcarPronta,
+  type SinaisDeProgresso,
+  type Tarefa,
+} from "./deposito.js";
+import { erroComParcial } from "../providers/erro-parcial.js";
+import { criarLimitador } from "./limitador.js";
+
+// Intervalo mínimo entre duas gravações de andamento. Três segundos: rápido o
+// bastante pra quem consulta ver notícia fresca, devagar o bastante pra um
+// stream de centenas de eventos não virar centenas de gravações em disco.
+export const INTERVALO_DE_PROGRESSO_MS = 3000;
 
 export interface PedidoEmSegundoPlano {
   pasta: string;
@@ -16,8 +30,10 @@ export interface PedidoEmSegundoPlano {
   modelo: string;
   task: string;
   prazoMs: number;
-  // A delegação em si, já montada: devolve o texto final (com rodapé).
-  executar: () => Promise<string>;
+  // A delegação em si, já montada: devolve o texto final (com rodapé). Recebe
+  // um jeito de avisar o andamento — os motores que não sabem dizer nada
+  // simplesmente ignoram o parâmetro, e nada muda pra eles.
+  executar: (aoProgredir?: (sinais: SinaisDeProgresso) => void) => Promise<string>;
 }
 
 export interface Disparo {
@@ -40,12 +56,23 @@ function mensagemDeErro(err: unknown): string {
 // GRAVAR esse erro é capturada e só vira uma linha no diário (stderr).
 function acompanhar(pedido: PedidoEmSegundoPlano, id: string): Promise<void> {
   return (async () => {
+    // O andamento vai pro disco de tempo em tempo, nunca a cada evento.
+    const limitador = criarLimitador<SinaisDeProgresso>(INTERVALO_DE_PROGRESSO_MS, (sinais) =>
+      anotarProgresso(pedido.pasta, id, sinais).then(() => undefined)
+    );
     try {
-      const texto = await pedido.executar();
+      const texto = await pedido.executar((sinais) => limitador.registrar(sinais));
+      // A última anotação de andamento tem que entrar ANTES do desfecho, senão
+      // ela chegaria depois e seria descartada (o anotarProgresso não mexe em
+      // tarefa que já terminou).
+      await limitador.finalizar();
       await marcarPronta(pedido.pasta, id, texto);
     } catch (err) {
       try {
-        await marcarErro(pedido.pasta, id, mensagemDeErro(err));
+        await limitador.finalizar();
+        // Se o motor morreu mas trouxe o que já tinha escrito, guardamos junto
+        // do erro. É o que faz vinte minutos de trabalho não virarem zero.
+        await marcarErro(pedido.pasta, id, mensagemDeErro(err), new Date(), erroComParcial(err)?.parcial);
       } catch (falhaAoGravar) {
         // Última barreira: nem gravar deu certo. Não dá pra fazer mais nada
         // além de registrar — e, principalmente, não deixar o erro escapar.

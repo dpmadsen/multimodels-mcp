@@ -13,6 +13,22 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { resolveTimeoutMs, type ClaudeCliProvider, type ModelsConfig } from "../config.js";
 import { naFila } from "./fila.js";
+import {
+  ESTADO_INICIAL,
+  consumirPedaco,
+  extrairResultado,
+  finalizar,
+  progressoDoEstado,
+  textoAcumulado,
+  type EstadoDoStream,
+  type ProgressoDoStream,
+} from "./claude-stream.js";
+import { ErroComParcial } from "./erro-parcial.js";
+
+// Aviso de progresso pra quem chamou. O motor não sabe o que é uma "tarefa" —
+// ele só grita "estou aqui, já fiz isso" e quem ligou decide o que fazer com
+// isso. É de propósito que este arquivo não importe nada de ../tarefas/.
+export type AoProgredir = (progresso: ProgressoDoStream) => void;
 
 // Folga dada ao próprio Claude Code (via API_TIMEOUT_MS) por cima do nosso
 // kill: 1 minuto a mais, pra que o nosso prazo seja sempre o primeiro a falar
@@ -57,9 +73,20 @@ export function buildClaudeCliArgs(task: string, model: string, effort?: string)
     "--mcp-config",
     '{"mcpServers":{}}',
     "--strict-mcp-config",
-    // Saída em UM documento JSON no stdout; o texto final fica no campo "result".
+    // Saída em MUITAS linhas JSON (uma por evento), conforme as coisas
+    // acontecem — é o que permite saber do andamento sem esperar o fim. O
+    // desfecho vem no último evento ("result"), no MESMO formato do documento
+    // único que o "--output-format json" devolvia antes.
     "--output-format",
-    "json",
+    "stream-json",
+    // Sem isto os eventos só chegam de bloco fechado em bloco fechado; com
+    // isto vêm também os pedacinhos de texto ao vivo, que são o que salva o
+    // trabalho quando a tarefa morre no meio.
+    "--include-partial-messages",
+    // Exigência do próprio CLI, medida em 2026-08-01: sem --verbose ele recusa
+    // na hora com "When using --print, --output-format=stream-json requires
+    // --verbose". Não é escolha nossa; é a única forma de o modo existir.
+    "--verbose",
   ];
 }
 
@@ -109,21 +136,14 @@ export function montarAmbiente(
   return env;
 }
 
-// Formato do JSON devolvido pelo `claude -p --output-format json`.
-interface SaidaClaudeCli {
-  result?: string;
-  is_error?: boolean;
-  subtype?: string;
-  error?: string;
-}
-
 export async function runClaudeCli(
   config: ModelsConfig | undefined,
   provider: ClaudeCliProvider,
   task: string,
   workdir?: string,
   model?: string,
-  effort?: string
+  effort?: string,
+  aoProgredir?: AoProgredir
 ): Promise<string> {
   if (!model) {
     throw new Error(`A raia "${provider.label}" exige um modelo explícito (ex.: "${provider.models[0] ?? "glm-5.2"}").`);
@@ -157,7 +177,7 @@ export async function runClaudeCli(
   // também é único por raia no cardápio — e assim ela ganha a fila dela,
   // separada das outras raias.
   return naFila(provider.baseUrl ?? provider.label, provider.maxConcurrent, () =>
-    executarClaudeCli(provider, task, model, workdir, timeoutMs, apiKey, effort)
+    executarClaudeCli(provider, task, model, workdir, timeoutMs, apiKey, effort, aoProgredir)
   );
 }
 
@@ -168,7 +188,8 @@ async function executarClaudeCli(
   workdir: string | undefined,
   timeoutMs: number,
   apiKey: string | undefined,
-  effort: string | undefined
+  effort: string | undefined,
+  aoProgredir: AoProgredir | undefined
 ): Promise<string> {
   // Identidade limpa e descartável: sem uma pasta de configuração própria, o
   // Claude Code usaria o login salvo do Daniel e mandaria a credencial errada
@@ -191,26 +212,65 @@ async function executarClaudeCli(
       // multibyte (emoji, acento) partido entre dois eventos "data" viraria "�".
       child.stdout.setEncoding("utf8");
       child.stderr.setEncoding("utf8");
-      let stdout = "";
       let stderr = "";
+      // Quanto texto o stdout já trouxe. Antes a gente guardava o stdout
+      // inteiro numa variável; agora ele é consumido linha a linha e o que
+      // fica guardado é só o ESTADO do leitor. Mas o teto de 10 MB continua
+      // valendo, então o tamanho é contado à parte.
+      let tamanhoDoStdout = 0;
+      // Rabo do stdout, só pra mensagem de diagnóstico quando nada dá certo.
+      let rabaoDoStdout = "";
+      let estado: EstadoDoStream = ESTADO_INICIAL;
+      // Começo da linha que ainda não terminou (o stdout chega em pedaços que
+      // não respeitam a quebra de linha).
+      let sobra = "";
       // Flag de aborto por nossa conta: quando matamos o processo por prazo, o
       // evento "close" chega com code === null e fabricaria um segundo reject
       // inútil — a rejeição do prazo já falou, então o close só retorna.
       let mortoPorPrazo = false;
       let mortoPorTamanho = false;
+
+      // Erro que leva junto o que já tinha sido produzido. Só é usado nos dois
+      // caminhos de morte violenta (prazo e tamanho): são exatamente os casos
+      // em que, antes, vinte minutos de trabalho viravam zero.
+      const erroComOParcial = (mensagem: string): ErroComParcial => {
+        // Fecha a última linha pendente antes de olhar o estado: ela pode ser
+        // justamente o evento que traz o último pedaço de texto ou a última
+        // ferramenta usada — e é o que sobrou, não dá pra desperdiçar.
+        const fechado = finalizar(estado, sobra);
+        return new ErroComParcial(mensagem, textoAcumulado(fechado), progressoDoEstado(fechado));
+      };
+
       const timer = setTimeout(() => {
         mortoPorPrazo = true;
         child.kill("SIGKILL");
-        reject(new Error(`O ${provider.label} passou de ${timeoutMs / 60000} minutos e foi interrompido.`));
+        reject(
+          erroComOParcial(`O ${provider.label} passou de ${timeoutMs / 60000} minutos e foi interrompido.`)
+        );
       }, timeoutMs);
       child.stdout.on("data", (chunk: string) => {
-        stdout += chunk;
-        if (stdout.length > MAX_STDOUT_CHARS) {
+        tamanhoDoStdout += chunk.length;
+        rabaoDoStdout = (rabaoDoStdout + chunk).slice(-500);
+        const passo = consumirPedaco(estado, sobra, chunk);
+        const antes = estado;
+        estado = passo.estado;
+        sobra = passo.sobra;
+        // Só avisamos quando algum sinal mudou de verdade — a maioria dos
+        // eventos é bastidor e não muda nada que valha um recado.
+        if (aoProgredir && houveMudanca(antes, estado)) {
+          try {
+            aoProgredir(progressoDoEstado(estado));
+          } catch {
+            // Quem ouve o progresso NUNCA pode derrubar a delegação: um erro
+            // ao anotar o andamento não vale perder a resposta inteira.
+          }
+        }
+        if (tamanhoDoStdout > MAX_STDOUT_CHARS) {
           mortoPorTamanho = true;
           clearTimeout(timer);
           child.kill("SIGKILL");
           reject(
-            new Error(
+            erroComOParcial(
               `A resposta do ${provider.label} passou de 10 MB e foi interrompida. Refaça a tarefa pedindo respostas menores.`
             )
           );
@@ -240,8 +300,10 @@ async function executarClaudeCli(
         if (mortoPorPrazo || mortoPorTamanho) {
           return;
         }
+        // A última linha pode ter chegado sem "\n" no fim.
+        estado = finalizar(estado, sobra);
         try {
-          resolve(extrairResultado(stdout, stderr, code, provider.label));
+          resolve(extrairResultado(estado, rabaoDoStdout, stderr, code, provider.label));
         } catch (err) {
           reject(err);
         }
@@ -253,30 +315,13 @@ async function executarClaudeCli(
   }
 }
 
-// Interpreta o documento JSON do stdout e devolve o texto final (campo "result").
-// Erros viram mensagem amigável em português com o final do stderr pra diagnóstico.
-function extrairResultado(stdout: string, stderr: string, code: number | null, label: string): string {
-  const bruto = stdout.trim();
-  if (!bruto) {
-    throw new Error(
-      `O ${label} terminou sem produzir saída (código ${code ?? "?"}). Detalhe: ${stderr.slice(-500) || "(sem detalhes)"}`
-    );
-  }
-  let dados: SaidaClaudeCli;
-  try {
-    dados = JSON.parse(bruto) as SaidaClaudeCli;
-  } catch {
-    throw new Error(
-      `Não entendi a resposta do ${label} (esperava um JSON). Detalhe: ${stderr.slice(-500) || bruto.slice(-500)}`
-    );
-  }
-  if (dados.is_error || (dados.subtype && dados.subtype !== "success")) {
-    const motivo = dados.error || dados.result || stderr.slice(-500) || "(sem detalhes)";
-    throw new Error(`O ${label} terminou com erro. Detalhe: ${motivo}`);
-  }
-  const message = (dados.result ?? "").trim();
-  if (!message) {
-    throw new Error(`O ${label} terminou sem deixar uma resposta final. Detalhe: ${stderr.slice(-500) || "(sem detalhes)"}`);
-  }
-  return message;
+// Vale a pena avisar do progresso? Só quando um dos sinais que a gente mostra
+// mudou. Sem isso, cada pedacinho de texto ao vivo (são centenas) viraria um
+// recado, e a camada de cima levaria uma martelada de gravações.
+function houveMudanca(antes: EstadoDoStream, depois: EstadoDoStream): boolean {
+  return (
+    antes.idasAoModelo.length !== depois.idasAoModelo.length ||
+    antes.tokensSaida !== depois.tokensSaida ||
+    antes.ferramentas !== depois.ferramentas
+  );
 }

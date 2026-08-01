@@ -19,7 +19,7 @@ The same pattern works for any MCP-capable agent — nothing here is Claude-spec
 |---|---|
 | `list_models` | Returns the menu: every enabled model with its exact id and provider status (missing key, offline local server, etc.) |
 | `delegate_task` | Sends a self-contained task to the chosen model. **Backgrounds it by default** and returns a task id immediately; `"wait": true` blocks and returns the answer instead |
-| `check_task` | With `id`, returns that task's result (or "still running", or the error). Without `id`, lists the tasks, newest first |
+| `check_task` | With `id`, returns that task's result (or "still running" **plus live progress signals**, or the error **plus any salvaged partial**). Without `id`, lists the tasks, newest first |
 
 Delegation niceties, all born from the benchmarks below: pick the Codex model per call (`codex:gpt-5.6-luna`), set reasoning effort per call (`effort` works for Codex, `claude-maos`, z.ai, DeepSeek and OpenRouter) **or as a per-model default picked in the panel**, **per-provider concurrency queues** (z.ai and LM Studio silently choke on parallel calls — the server now queues them), configurable per-provider timeouts, and **automatic retry** on network drops / 429 / 5xx (the answer footer says `repescada 1×` when the second attempt saved the day).
 
@@ -33,9 +33,31 @@ A delegation to a "with hands" lane or to a local box can take 20–30 minutes. 
 - **Everything that can be refused is refused before the task is created** (unknown/disabled model, the manufacturer rule, `effort` on a with-hands lane), so a refusal is immediate rather than a task that fails later.
 - Background tasks go through the *same* provider code paths, so **per-provider concurrency queues (`maxConcurrent`) still apply**: five background delegations to LM Studio queue up exactly like five synchronous ones.
 
+### Progress signals and salvaged partials (with-hands lanes only)
+
+A backgrounded delegation used to be a black box: `check_task` could only say "still running". Since 0.12.0 the **`claude-cli` ("with hands") lanes** report what is happening while it happens, and hand back the work in progress if the run dies. **Codex, Gemini and the `openai-compat` API lanes are untouched** — they have no equivalent signal, so `check_task` tells you honestly that this lane sends no progress.
+
+**How it's read.** The engine no longer runs `claude -p --output-format json` and parses one document at the end. It runs:
+
+```
+--output-format stream-json --include-partial-messages --verbose
+```
+
+which emits one JSON event per line as things happen. `--verbose` is not optional: with `--print`, the CLI refuses `stream-json` without it (`When using --print, --output-format=stream-json requires --verbose`). Event types actually observed on this machine (2026-08-01): `system` (`init`, `status`, `hook_started`, `hook_response`, `thinking_tokens`, `post_turn_summary`), `stream_event` (wrapping the raw API events `message_start`, `content_block_start`, `content_block_delta` with `text_delta` / `thinking_delta` / `input_json_delta` / `signature_delta`, `content_block_stop`, `message_delta`, `message_stop`), `assistant` (one per closed content block), `user` (tool results), `rate_limit_event`, and `result` last.
+
+**The final text is unchanged.** The `result` event carries an *identical key set* to the single document the old `--output-format json` produced, so the extraction rules and their error messages are the same code as before, just fed from the stream. A test proves it: it runs the old parser and the new reader over the same recorded run and asserts the two strings are equal.
+
+**What the signals are.** Steps (trips to the model, grouped by `request_id` — the CLI emits several `assistant` events per trip, so counting events would inflate it), tools used with counts, and output tokens (summed from `message_delta`, which matches the total the `result` event reports). Progress is persisted at most **once every 3 seconds**, plus a guaranteed final write — a single run emits hundreds of events and writing each one would hammer the disk.
+
+**Partials.** When the process is killed by the deadline or by the 10 MB output cap, the text accumulated so far is attached to the error (a dedicated `ErroComParcial`) instead of being thrown away. It is stored on the task as a `parcial` field **inside the `erro` state**, not as a new state: the task did fail, and inventing a third state would force the list, the housekeeping pass and the orphan warning to learn about it. Anything displaying it must wrap it in an unmissable warning — `check_task` prints the warning before *and* after the draft, with explicit start/end markers, and the list shows `erro (com rascunho incompleto)`. `"wait": true` gets the same treatment inline, since in synchronous mode there's no ticket to store it on.
+
+**Deliberately not implemented: live partial text during a normal run.** A reasoning model passes through mid-way conclusions it later revises away; exposing those invites acting on something the model itself has already discarded. The draft surfaces only when the task dies — the one case where it is all that's left. The reader also never mixes `thinking_delta` into the accumulated text, for the same reason.
+
+**Unknown events and junk lines are ignored in silence.** A future CLI update adding a field or a type, or stray non-JSON noise on stdout, must never take a delegation down.
+
 ### Where results live
 
-`.multimodels/tarefas/<id>.json` in the project root (gitignored) — one JSON file per task holding its state, model id, a ~200-character summary of the request, start/end timestamps, that lane's deadline, and the result or the error. On disk, so a result outlives the session that ordered it.
+`.multimodels/tarefas/<id>.json` in the project root (gitignored) — one JSON file per task holding its state, model id, a ~200-character summary of the request, start/end timestamps, that lane's deadline, the result or the error, plus (with-hands lanes) a `progresso` block (`passos`, `ferramentas`, `tokensSaida`, `atualizadoEm`) and a `parcial` field when a dead run left a draft behind. On disk, so a result outlives the session that ordered it.
 
 - **Ids are claimed exclusively.** The next number comes from the files already present, and the file is created with the `wx` flag; on `EEXIST` the creator tries the next number. Two sessions running at once can never land on the same id.
 - **50 tasks are kept.** A housekeeping pass runs on every creation and deletes the oldest beyond that, so the folder can't grow forever. A task still running inside its deadline is never deleted — something is still going to write to it.

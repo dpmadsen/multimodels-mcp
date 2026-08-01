@@ -9,6 +9,7 @@ import {
   listarTarefas,
   type TarefaApresentada,
 } from "../tarefas/deposito.js";
+import { blocoDeParcial } from "../tarefas/texto-parcial.js";
 
 export const NOME_DA_FERRAMENTA_DE_TAREFAS = "check_task";
 
@@ -32,6 +33,28 @@ function plural(minutos: number): string {
   return `${minutos} minuto${minutos === 1 ? "" : "s"}`;
 }
 
+// "Read 2×, Grep 1×" — em português e sem jargão. Função pura.
+export function ferramentasEmTexto(ferramentas: Record<string, number>): string {
+  const nomes = Object.keys(ferramentas);
+  if (nomes.length === 0) return "nenhuma ainda";
+  return nomes.map((nome) => (ferramentas[nome] > 1 ? `${nome} ${ferramentas[nome]}×` : nome)).join(", ");
+}
+
+// Linha de andamento de uma tarefa que está rodando. Função pura.
+export function textoDoProgresso(tarefa: TarefaApresentada): string {
+  const progresso = tarefa.progresso;
+  if (!progresso) {
+    // A maioria das raias não sabe dar notícia: melhor dizer isso do que deixar
+    // um silêncio que parece defeito.
+    return "Ainda não chegou notícia do andamento (só as raias \"com mãos\" mandam esse sinal).";
+  }
+  const passos = `${progresso.passos} passo${progresso.passos === 1 ? "" : "s"}`;
+  return (
+    `Andamento até agora: ${passos} · ferramentas usadas: ${ferramentasEmTexto(progresso.ferramentas)} · ` +
+    `${progresso.tokensSaida} tokens escritos.`
+  );
+}
+
 // Texto de UMA tarefa consultada pela senha. Função pura.
 export function textoDaTarefa(tarefa: TarefaApresentada, agora: Date = new Date()): string {
   if (tarefa.estado === "pronta") {
@@ -42,9 +65,16 @@ export function textoDaTarefa(tarefa: TarefaApresentada, agora: Date = new Date(
     );
   }
   if (tarefa.estado === "erro") {
-    return (
+    const cabecalho =
       `A ${tarefa.id} (modelo: ${tarefa.modelo}) terminou com erro:\n\n${tarefa.erro ?? "(sem detalhe)"}\n\n` +
-      `Se o motivo for passageiro (rede, provedor fora do ar), é só delegar de novo.`
+      `Se o motivo for passageiro (rede, provedor fora do ar), é só delegar de novo.`;
+    if (!tarefa.parcial) return cabecalho;
+    // Tarefa que morreu MAS deixou trabalho feito. O aviso cerca o texto dos
+    // dois lados de propósito.
+    return (
+      `${cabecalho}\n\n` +
+      `Mas o trabalho não foi todo perdido: sobrou um rascunho.\n\n` +
+      `${blocoDeParcial(tarefa.parcial, tarefa.id)}`
     );
   }
   const rodandoHa = decorrido(tarefa.inicio, agora);
@@ -53,12 +83,15 @@ export function textoDaTarefa(tarefa: TarefaApresentada, agora: Date = new Date(
     return (
       `A ${tarefa.id} (modelo: ${tarefa.modelo}) está marcada como rodando há ${rodandoHa}, ` +
       `mas já passou do prazo dela (${prazo}): ${AVISO_DE_ORFA}. ` +
-      `Nesse caso o resultado não vem mais — delegue a tarefa de novo.`
+      `Nesse caso o resultado não vem mais — delegue a tarefa de novo.\n\n` +
+      `${textoDoProgresso(tarefa)}`
     );
   }
   return (
     `A ${tarefa.id} (modelo: ${tarefa.modelo}) ainda está rodando — começou faz ${rodandoHa}, ` +
-    `e o prazo dessa raia é de até ${prazo}. Siga trabalhando em outra coisa e volte a consultar ` +
+    `e o prazo dessa raia é de até ${prazo}.\n\n` +
+    `${textoDoProgresso(tarefa)}\n\n` +
+    `Siga trabalhando em outra coisa e volte a consultar ` +
     `mais tarde; não fique consultando em looping.`
   );
 }
@@ -73,7 +106,10 @@ export function textoDaLista(tarefas: TarefaApresentada[]): string {
   }
   const linhas = tarefas.map((tarefa) => {
     const estado = tarefa.provavelmenteInterrompida ? AVISO_DE_ORFA : tarefa.estado;
-    return `- ${tarefa.id} · ${estado} · ${tarefa.modelo} · ${tarefa.resumo}`;
+    // Erro que deixou rascunho é diferente de erro seco: quem olha a lista
+    // precisa saber que ali dentro ainda tem trabalho aproveitável.
+    const rascunho = tarefa.parcial ? " (com rascunho incompleto)" : "";
+    return `- ${tarefa.id} · ${estado}${rascunho} · ${tarefa.modelo} · ${tarefa.resumo}`;
   });
   return [
     "Tarefas delegadas (mais recentes primeiro):",
@@ -100,6 +136,9 @@ export function registerCheckTask(server: McpServer, pasta: string = PASTA_DE_TA
       description:
         "Busca o resultado de uma tarefa que o delegate_task deixou rodando em segundo plano. " +
         "Com 'id', devolve o resultado (ou diz que ainda está rodando, ou mostra o erro). " +
+        "Nas raias 'com mãos', a tarefa que ainda roda mostra o andamento (quantos passos, quais " +
+        "ferramentas, quantos tokens), e a que morreu no meio pode trazer um rascunho INCOMPLETO — " +
+        "quando vier, ele vem marcado como tal e não deve ser tratado como resposta final. " +
         "Sem 'id', lista as tarefas (mais recentes primeiro) para você achar a que quer. " +
         "Consulte de vez em quando, enquanto faz outra coisa — não em looping.",
       inputSchema: {

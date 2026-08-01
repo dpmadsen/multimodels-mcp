@@ -2,6 +2,19 @@
 
 > English translation of [CHANGELOG.md](CHANGELOG.md) (Portuguese original — the project is built in Portuguese, in plain non-technical language, by design).
 
+## 0.12.0 (2026-08-01) — You can watch the dish being cooked (and keep what survives if it burns)
+
+- Until now, a backgrounded delegation was a closed box: you asked, and all you heard was "still running". Twenty minutes of that, with no way to tell whether the model was working or stuck.
+- **Now the check shows progress.** `check_task` on a running task tells you how long ago it started, how many steps it has taken, which tools it used (`Read 2×, Grep`) and how many tokens it has written so far. You can tell it's moving without waiting for the end.
+- **And a task that dies no longer loses everything.** If the deadline blows, if the answer passes the size limit, or if the run is cut short, whatever the model had already written is stored alongside the error. Before, twenty minutes of work turned into zero.
+- **That salvaged text always arrives labelled as an INCOMPLETE draft**, with the warning both before and after it, and with explicit start/end markers. It is not an answer: it can stop mid-sentence, and the model never got to revise it. It exists so you don't lose the ground already covered — for a real answer, just delegate again. In the task list, this case shows up as "erro (com rascunho incompleto)".
+- **One thing we deliberately did NOT do:** stream the model's text live while it works normally. A reasoning model passes through mid-way conclusions that it later discards itself — anyone reading those could act on an idea the model had already abandoned. The draft only surfaces when the task dies, which is exactly when it's the only thing left.
+- All of this applies **only to the "with hands" lanes** (the ones running Claude Code underneath). Codex, Gemini and the API lanes can't report this; there, the check answers exactly as before, and a running task says honestly that this lane sends no progress signal.
+- Under the hood, the way the `claude` program's output is read has changed: instead of waiting for a single document at the end, the server now follows the notices the program emits while working. **The final text you receive is exactly the same as before** — proven by a test that runs both reading styles side by side against a real recorded run.
+- Careful with the disk: a run like this produces hundreds of notices per minute. Progress is written at most once every 3 seconds (plus one final write at the end, so nothing is lost), rather than on every notice.
+- Careful with the future: if a Claude Code update starts sending a kind of notice we don't know, or spits a stray line into the output, the server ignores it silently and keeps working. A new format must never take your delegation down.
+- 57 new tests (273 total, all passing).
+
 ## 0.11.0 (2026-08-01) — You can now choose how hard Claude thinks
 
 - The "Claude with hands (subscription)" lane gained the same effort control z.ai and OpenRouter already had: you can now say how much the model should think before answering.
