@@ -2,6 +2,12 @@
 
 > English translation of [CHANGELOG.md](CHANGELOG.md) (Portuguese original — the project is built in Portuguese, in plain non-technical language, by design).
 
+## 0.12.1 (2026-08-01) — The Claude effort control actually shows up in the panel
+- The reasoning-effort selector added in 0.11.0 existed in the server, in the tests and in the config file — but never rendered on screen. Now it does.
+- What happened: the panel draws two card layouts, one for API-key engines and one for subscription engines. The effort selector had only been wired into the first. The feature was complete and invisible on exactly the lane it was built for.
+- Nothing changed underneath: the server had been returning the five levels correctly all along. The screen simply wasn't asking.
+- If you have the panel open, reload the page to see it.
+
 ## 0.12.0 (2026-08-01) — You can watch the dish being cooked (and keep what survives if it burns)
 
 - Until now, a backgrounded delegation was a closed box: you asked, and all you heard was "still running". Twenty minutes of that, with no way to tell whether the model was working or stuck.

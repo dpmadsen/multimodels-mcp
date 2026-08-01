@@ -2,6 +2,12 @@
 
 > English version: [CHANGELOG.en.md](CHANGELOG.en.md)
 
+## 0.12.1 (2026-08-01) — O controle de esforço do Claude aparece no painel
+- A escolha de quanto o Claude pensa, criada na 0.11.0, existia no servidor, nos testes e no arquivo de configuração — mas não aparecia na tela. Agora aparece.
+- O que tinha acontecido: o painel desenha dois formatos de cartão, um para os motores que usam chave de API e outro para os que entram por assinatura. O seletor de esforço tinha sido ligado só no primeiro. Resultado: a funcionalidade estava pronta e invisível justamente na raia para a qual foi feita.
+- Nada mudou por baixo — o servidor já mandava os cinco níveis certos o tempo todo. Era só a tela que não estava perguntando.
+- Se você tem o painel aberto, recarregue a página para ver.
+
 ## 0.12.0 (2026-08-01) — Dá pra ver o prato sendo feito (e o que sobra se ele queimar)
 
 - Até agora, tarefa delegada em segundo plano era uma caixa fechada: você perguntava e só ouvia "ainda está rodando". Vinte minutos assim, sem saber se o modelo estava trabalhando ou travado.

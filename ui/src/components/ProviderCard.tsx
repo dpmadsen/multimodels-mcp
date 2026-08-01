@@ -167,7 +167,18 @@ export function ProviderCard({ provider, defaultTimeoutMinutes, onChanged, onErr
           )}
           <div className="space-y-2">
             <p className="text-sm font-medium">Modelos habilitados</p>
-            <ModelList models={provider.models} onRemove={removeModel} />
+            {/* As mesmas opções de esforço do cartão de API: a raia "com mãos"
+                de assinatura também aceita esse ajuste desde a 0.11.0. Sem
+                repassar aqui, o seletor existia no servidor, nos testes e no
+                outro formato de cartão — e era invisível justamente na raia
+                pra qual foi feito. */}
+            <ModelList
+              models={provider.models}
+              onRemove={removeModel}
+              effortOptions={provider.effortOptions ?? undefined}
+              defaultEffortByModel={provider.defaultEffortByModel ?? undefined}
+              onEffortChange={provider.effortOptions ? changeEffort : undefined}
+            />
           </div>
           <AddModelInput placeholder="id do modelo…" onAdd={addModel} />
           {linhaPrazo}
