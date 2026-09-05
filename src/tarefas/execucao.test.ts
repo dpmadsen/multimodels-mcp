@@ -278,3 +278,24 @@ test("motor que não sabe dar notícia continua funcionando igual", async () => 
   assert.equal(lida?.resultado, "resposta sem andamento");
   assert.equal(lida?.progresso, undefined);
 });
+
+// Protege os eventos minimos da vida da tarefa sem registrar o texto pedido ou
+// respondido. Antes de alterar/remover, conferir requisito, diff, historico,
+// MEMORY.md, plano e docs/test-change-log.md.
+test("tarefa em segundo plano registra criacao e desfecho sem texto sensivel", async () => {
+  const pasta = await pastaNova();
+  const linhas: string[] = [];
+  const original = console.error;
+  console.error = (linha?: unknown) => linhas.push(String(linha));
+  try {
+    const { concluida } = await dispararEmSegundoPlano({
+      pasta, modelo: "codex", task: "prompt que nao pode aparecer", prazoMs: 60_000,
+      executar: async () => "resposta que nao pode aparecer",
+    });
+    await concluida;
+  } finally { console.error = original; }
+  const eventos = linhas.map((linha) => JSON.parse(linha) as { event: string; outcome?: string });
+  assert.deepEqual(eventos.map((evento) => evento.event), ["task.created", "task.finished"]);
+  assert.equal(eventos[1].outcome, "success");
+  assert.ok(linhas.every((linha) => !linha.includes("nao pode aparecer")));
+});

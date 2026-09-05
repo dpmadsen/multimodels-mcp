@@ -8,18 +8,20 @@ import { accessSync, constants, existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import {
+  MAX_RESPONSE_BYTES_PADRAO,
+  resolveMaxResponseBytes,
   resolveTimeoutMs,
   TIMEOUT_PADRAO_MINUTOS,
   type GeminiProvider,
   type ModelsConfig,
 } from "../config.js";
+import { montarAmbienteGemini } from "./ambiente-filho.js";
+import { ErroLimiteDeSaida, somarBytesDeSaida } from "./limite-saida.js";
 
 // Teto de memória da saída (a delegação pode durar muitos minutos):
 // stderr guarda só um rabo rolante — usamos apenas o final (slice(-500) e as
 // regexes de diagnóstico), então mais que isso é desperdício.
 const MAX_STDERR_CHARS = 8192;
-// stdout tem teto de 10 MB; passando disso, abortamos em vez de estourar a RAM.
-const MAX_STDOUT_CHARS = 10 * 1024 * 1024;
 
 // O instalador oficial coloca o agy em ~/.local/bin, que nem sempre está no
 // PATH do processo do servidor. Preferimos o caminho completo quando ele existe
@@ -71,30 +73,36 @@ export async function runGemini(
   config: ModelsConfig | undefined,
   provider: GeminiProvider | undefined,
   task: string,
-  workdir?: string,
+  workdir: string,
   model?: string,
   effort?: string
 ): Promise<string> {
+  if (!workdir) {
+    throw new Error("O campo workdir é obrigatório para modelos que acessam arquivos.");
+  }
   // Prazo vem sempre da cascata (provedor → padrão do arquivo → embutido).
   const timeoutMs = resolveTimeoutMs(config, provider);
+  const maxResponseBytes = resolveMaxResponseBytes(config, provider ?? {}, model);
   // Validamos a pasta antes do spawn: se ela não existir, o spawn falharia com
   // ENOENT e a mensagem de erro culparia o agy ("não encontrei o programa agy"),
   // um diagnóstico errado. Melhor apontar direto para a pasta inexistente.
-  if (workdir !== undefined && !existsSync(workdir)) {
+  if (!existsSync(workdir)) {
     throw new Error(`A pasta indicada em workdir não existe: ${workdir}`);
   }
   return await new Promise<string>((resolve, reject) => {
     const child = spawn(resolveAgyBinary(), buildGeminiArgs(task, { model, effort, workdir, timeoutMs }), {
-      cwd: workdir ?? process.cwd(),
+      cwd: workdir,
       // stdin fechado ("ignore"): sem isso o agy fica esperando
       // entrada para sempre e a delegação trava.
       stdio: ["ignore", "pipe", "pipe"],
+      env: montarAmbienteGemini(process.env),
     });
     // Decodificação em UTF-8 no próprio stream: sem isso, um caractere multibyte
     // (emoji, acento) partido entre dois eventos "data" viraria "�".
     child.stdout.setEncoding("utf8");
     child.stderr.setEncoding("utf8");
     let stdout = "";
+    let bytesDoStdout = 0;
     let stderr = "";
     // Flags de aborto por nossa conta: quando matamos o processo (prazo ou
     // tamanho), o evento "close" chega com code === null e fabricaria um segundo
@@ -107,17 +115,25 @@ export async function runGemini(
       reject(new Error(`O Gemini passou de ${timeoutMs / 60000} minutos e foi interrompido.`));
     }, timeoutMs);
     child.stdout.on("data", (chunk: string) => {
-      stdout += chunk;
-      if (stdout.length > MAX_STDOUT_CHARS) {
+      if (mortoPorTamanho) return;
+      const conta = somarBytesDeSaida(bytesDoStdout, chunk, maxResponseBytes);
+      if (conta.excedeu) {
         mortoPorTamanho = true;
         clearTimeout(timer);
         child.kill("SIGKILL");
         reject(
-          new Error(
-            "A resposta do Gemini passou de 10 MB e foi interrompida. Refaça a tarefa pedindo respostas menores."
+          new ErroLimiteDeSaida(
+            conta.total,
+            maxResponseBytes,
+            maxResponseBytes === MAX_RESPONSE_BYTES_PADRAO
+              ? "A resposta do Gemini passou de 10 MB e foi interrompida. Refaça a tarefa pedindo respostas menores."
+              : undefined
           )
         );
+        return;
       }
+      bytesDoStdout = conta.total;
+      stdout += chunk;
     });
     child.stderr.on("data", (chunk: string) => {
       stderr += chunk;

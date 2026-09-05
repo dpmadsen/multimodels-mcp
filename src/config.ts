@@ -23,7 +23,21 @@ export interface ControleDeEsforco {
   defaultEffortByModel?: Record<string, string>;
 }
 
-export interface OpenAICompatProvider extends ControleDeEsforco {
+// Limites opcionais de uma raia. contextTokens e so informacao de catalogo;
+// os dois limites de saida sao aplicados localmente antes de acumular resposta.
+export interface ModelLimits {
+  contextTokens?: number;
+  maxOutputTokens?: number;
+  maxResponseBytes?: number;
+}
+
+export interface ControleDeLimites {
+  maxOutputTokens?: number;
+  maxResponseBytes?: number;
+  modelLimits?: Record<string, ModelLimits>;
+}
+
+export interface OpenAICompatProvider extends ControleDeEsforco, ControleDeLimites {
   type: "openai-compat";
   label: string;
   baseUrl: string;
@@ -39,7 +53,6 @@ export interface OpenAICompatProvider extends ControleDeEsforco {
   models: string[];
   // Limite de tamanho da resposta (em tokens). Modelos de raciocínio gastam
   // parte desse limite "pensando", então o padrão precisa ser generoso.
-  maxTokens?: number;
   // Máximo de chamadas simultâneas a este provedor (fila por provedor).
   // Ausente = sem fila, chama direto (comportamento de sempre). Provedores
   // que engasgam com chamadas ao mesmo tempo (z.ai, LM Studio) usam isso
@@ -64,7 +77,7 @@ export interface OpenAICompatProvider extends ControleDeEsforco {
 // caminho barato ali é o subagente nativo do próprio programa (ver anfitriao.ts).
 // Campo AUSENTE = a raia nunca é escondida.
 
-export interface CodexProvider {
+export interface CodexProvider extends ControleDeLimites {
   type: "codex-cli";
   label: string;
   enabled: boolean;
@@ -78,7 +91,7 @@ export interface CodexProvider {
   timeoutMinutes?: number;
 }
 
-export interface GeminiProvider {
+export interface GeminiProvider extends ControleDeLimites {
   type: "gemini-cli";
   label: string;
   enabled: boolean;
@@ -93,7 +106,7 @@ export interface GeminiProvider {
   timeoutMinutes?: number;
 }
 
-export interface ClaudeCliProvider extends ControleDeEsforco {
+export interface ClaudeCliProvider extends ControleDeEsforco, ControleDeLimites {
   type: "claude-cli";
   label: string;
   enabled: boolean;
@@ -143,6 +156,7 @@ export function isCliProvider(provider: Provider): provider is CliProvider {
 export interface ConfigDefaults {
   // Prazo (em minutos) para desistir de uma delegação.
   timeoutMinutes?: number;
+  maxResponseBytes?: number;
 }
 
 export interface ModelsConfig {
@@ -153,6 +167,32 @@ export interface ModelsConfig {
 // Prazo embutido no programa: usado só quando nem o provedor nem o
 // config/models.json dizem nada.
 export const TIMEOUT_PADRAO_MINUTOS = 10;
+export const MAX_TOKENS_PADRAO = 32_000;
+export const MAX_RESPONSE_BYTES_PADRAO = 10 * 1024 * 1024;
+
+function limiteInteiroPositivo(valor: number, campo: string): number {
+  if (!Number.isSafeInteger(valor) || valor <= 0) {
+    throw new Error(`O limite ${campo} precisa ser um inteiro positivo seguro.`);
+  }
+  return valor;
+}
+
+export function resolveMaxOutputTokens(provider: ControleDeLimites, model?: string): number {
+  const valor = model ? provider.modelLimits?.[model]?.maxOutputTokens : undefined;
+  return limiteInteiroPositivo(valor ?? provider.maxOutputTokens ?? MAX_TOKENS_PADRAO, "maxOutputTokens");
+}
+
+export function resolveMaxResponseBytes(
+  config: ModelsConfig | undefined,
+  provider: ControleDeLimites,
+  model?: string
+): number {
+  const valor = model ? provider.modelLimits?.[model]?.maxResponseBytes : undefined;
+  return limiteInteiroPositivo(
+    valor ?? provider.maxResponseBytes ?? config?.defaults?.maxResponseBytes ?? MAX_RESPONSE_BYTES_PADRAO,
+    "maxResponseBytes"
+  );
+}
 
 // Cascata do prazo de execução, do mais específico ao mais geral:
 // prazo do provedor → padrão do arquivo (defaults) → 10 minutos embutidos.

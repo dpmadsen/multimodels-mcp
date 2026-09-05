@@ -4,11 +4,15 @@
 // também à raia "com mãos" da assinatura — aqui só usamos.
 import {
   resolveEffort,
+  resolveMaxOutputTokens,
+  resolveMaxResponseBytes,
   resolveTimeoutMs,
   type ModelsConfig,
   type OpenAICompatProvider,
 } from "../config.js";
 import { naFila } from "./fila.js";
+import { registrarEvento } from "../observabilidade.js";
+import { ErroLimiteDeSaida } from "./limite-saida.js";
 
 export interface ChatResult {
   text: string;
@@ -25,7 +29,7 @@ export interface ChatResult {
 const ESPERA_REPESCAGEM_MS = 2000;
 
 // Padrão generoso: modelos de raciocínio gastam parte do limite "pensando"
-// antes de escrever a resposta final. Ajustável por provedor via "maxTokens"
+// antes de escrever a resposta final. Ajustável por provedor via "maxOutputTokens"
 // no config/models.json.
 export const DEFAULT_MAX_TOKENS = 32_000;
 
@@ -47,7 +51,43 @@ interface ChatResponseBody {
 // a pena tentar a chamada de novo (erro de rede, ou status 429/5xx). Erros
 // de outro tipo (ex.: resposta sem texto) não usam esta classe e por isso
 // nunca são repescados.
-class ErroRepescavel extends Error {}
+class ErroRepescavel extends Error {
+  constructor(message: string, readonly reason: "network" | "http_429" | "http_5xx") {
+    super(message);
+  }
+}
+
+class ErroRedirect extends Error {
+  constructor(readonly status: number) {
+    super(`O provedor respondeu com redirect HTTP ${status}, que foi recusado por seguranca.`);
+  }
+}
+
+export async function lerCorpoLimitado(response: Response, maxBytes: number): Promise<string> {
+  const contentLength = response.headers.get("content-length");
+  if (contentLength !== null) {
+    const declarado = Number(contentLength);
+    if (Number.isFinite(declarado) && declarado > maxBytes) {
+      throw new ErroLimiteDeSaida(declarado, maxBytes);
+    }
+  }
+  if (!response.body) return "";
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let total = 0;
+  let text = "";
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      await reader.cancel();
+      throw new ErroLimiteDeSaida(total, maxBytes);
+    }
+    text += decoder.decode(value, { stream: true });
+  }
+  return text + decoder.decode();
+}
 
 // Separa a resposta final do raciocínio interno e detecta corte por limite.
 // Exportada para os testes.
@@ -65,7 +105,7 @@ export function parseChatResponse(
     if (reasoning.trim() && cortadaPorLimite) {
       throw new Error(
         `${providerLabel}: o modelo "${model}" gastou todo o limite de tamanho só "pensando" e não chegou a escrever a resposta final. ` +
-          `Tente uma tarefa mais curta ou divida-a em partes; se precisar, aumente o campo "maxTokens" desse provedor no config/models.json.`
+          `Tente uma tarefa mais curta ou divida-a em partes; se precisar, aumente o campo "maxOutputTokens" desse provedor no config/models.json.`
       );
     }
     if (reasoning.trim()) {
@@ -115,7 +155,8 @@ async function tentarUmaVez(
   model: string,
   prompt: string,
   extraEsforco: Record<string, unknown>,
-  timeoutMs: number
+  timeoutMs: number,
+  maxResponseBytes: number
 ): Promise<ChatResult> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (provider.envKey) {
@@ -136,10 +177,11 @@ async function tentarUmaVez(
       body: JSON.stringify({
         model,
         messages: [{ role: "user", content: prompt }],
-        max_tokens: provider.maxTokens ?? DEFAULT_MAX_TOKENS,
+        max_tokens: resolveMaxOutputTokens(provider, model),
         ...extraEsforco,
       }),
       signal: AbortSignal.timeout(timeoutMs),
+      redirect: "manual",
     });
   } catch (err) {
     // Provedor sem chave de API = instância do LM Studio (local ou na rede).
@@ -152,21 +194,21 @@ async function tentarUmaVez(
         : ` A outra máquina (${provider.baseUrl}) está ligada, com o LM Studio servindo na rede? (no LM Studio dela: aba Developer, ligar o servidor e ativar "Serve on Local Network")`;
     // Falha de rede (conexão recusada, resetada, prazo estourado etc.):
     // sempre vale a pena repescar.
-    throw new ErroRepescavel(
-      `Não consegui conectar ao ${provider.label}.${hint} Detalhe: ${String(err)}`
-    );
+    throw new ErroRepescavel(`Não consegui conectar ao ${provider.label}.${hint} Detalhe: ${String(err)}`, "network");
   }
 
+  if (response.status >= 300 && response.status < 400) throw new ErroRedirect(response.status);
+
   if (!response.ok) {
-    const body = await response.text();
+    const body = await lerCorpoLimitado(response, maxResponseBytes);
     const mensagem = `${provider.label} respondeu com erro ${response.status}: ${body.slice(0, 500)}`;
     if (statusValeRepescar(response.status)) {
-      throw new ErroRepescavel(mensagem);
+      throw new ErroRepescavel(mensagem, response.status === 429 ? "http_429" : "http_5xx");
     }
     throw new Error(mensagem);
   }
 
-  const data = (await response.json()) as ChatResponseBody;
+  const data = JSON.parse(await lerCorpoLimitado(response, maxResponseBytes)) as ChatResponseBody;
   return parseChatResponse(data, provider.label, model);
 }
 
@@ -178,19 +220,35 @@ async function chamarComRepescagem(
   model: string,
   prompt: string,
   extraEsforco: Record<string, unknown>,
-  timeoutMs: number
+  timeoutMs: number,
+  maxResponseBytes: number,
+  providerId: string
 ): Promise<ChatResult> {
+  const registrarRejeicao = (err: unknown): boolean => {
+    if (err instanceof ErroRedirect) {
+      registrarEvento({ event: "provider.reject", providerId, modelId: model, reason: "redirect", status: err.status });
+      return true;
+    }
+    if (err instanceof ErroLimiteDeSaida) {
+      registrarEvento({ event: "provider.reject", providerId, modelId: model, reason: "response_bytes", observedBytes: err.observedBytes, limitBytes: err.limitBytes });
+      return true;
+    }
+    return false;
+  };
   try {
-    return await tentarUmaVez(provider, model, prompt, extraEsforco, timeoutMs);
+    return await tentarUmaVez(provider, model, prompt, extraEsforco, timeoutMs, maxResponseBytes);
   } catch (err) {
+    if (registrarRejeicao(err)) throw err;
     if (!(err instanceof ErroRepescavel)) {
       throw err;
     }
+    registrarEvento({ event: "provider.retry", providerId, modelId: model, attempt: 2, reason: err.reason });
     await esperar(ESPERA_REPESCAGEM_MS);
     try {
-      const resultado = await tentarUmaVez(provider, model, prompt, extraEsforco, timeoutMs);
+      const resultado = await tentarUmaVez(provider, model, prompt, extraEsforco, timeoutMs, maxResponseBytes);
       return { ...resultado, retried: true };
     } catch (segundoErro) {
+      registrarRejeicao(segundoErro);
       const motivo = segundoErro instanceof Error ? segundoErro.message : String(segundoErro);
       throw new Error(`${motivo} (repescagem também falhou — foram 2 tentativas no total)`);
     }
@@ -202,7 +260,7 @@ export async function chatCompletion(
   provider: OpenAICompatProvider,
   model: string,
   prompt: string,
-  opts?: { effort?: string }
+  opts?: { effort?: string; providerId?: string }
 ): Promise<ChatResult> {
   if (opts?.effort !== undefined && !provider.effortStyle) {
     throw new Error(
@@ -216,9 +274,20 @@ export async function chatCompletion(
 
   // Prazo vem sempre da cascata (provedor → padrão do arquivo → embutido).
   const timeoutMs = resolveTimeoutMs(config, provider);
+  const maxResponseBytes = resolveMaxResponseBytes(config, provider, model);
+  const providerId = opts?.providerId ?? "direct";
+  const startedAt = Date.now();
+  registrarEvento({ event: "provider.start", providerId, modelId: model });
 
   // A baseUrl é única por provedor, então serve de chave da fila.
-  return naFila(provider.baseUrl, provider.maxConcurrent, () =>
-    chamarComRepescagem(provider, model, prompt, extraEsforco, timeoutMs)
-  );
+  try {
+    const result = await naFila(provider.baseUrl, provider.maxConcurrent, () =>
+      chamarComRepescagem(provider, model, prompt, extraEsforco, timeoutMs, maxResponseBytes, providerId)
+    );
+    registrarEvento({ event: "provider.finish", providerId, modelId: model, elapsedMs: Date.now() - startedAt, outcome: "success" });
+    return result;
+  } catch (err) {
+    registrarEvento({ event: "provider.finish", providerId, modelId: model, elapsedMs: Date.now() - startedAt, outcome: err instanceof Error && err.name === "TimeoutError" ? "timeout" : "error" });
+    throw err;
+  }
 }

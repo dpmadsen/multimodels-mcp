@@ -6,7 +6,6 @@ import assert from "node:assert/strict";
 import {
   buildClaudeCliArgs,
   ehRaiaDeAssinatura,
-  montarAmbiente,
   runClaudeCli,
 } from "./claude-cli.js";
 import { registerDelegate } from "../tools/delegate.js";
@@ -27,8 +26,16 @@ const provider: ClaudeCliProvider = {
 // Cardápio de mentira: aqui o que importa são as travas de segurança, não o prazo.
 const config: ModelsConfig = { providers: { "glm-maos": provider } };
 
-test("monta os argumentos na ordem da receita, com a tarefa logo após -p", () => {
-  const args = buildClaudeCliArgs("faça isso", "glm-5.2");
+// Estas provas protegem a separação entre assinatura e chave API e a
+// disponibilidade real das ferramentas: --allowedTools só pré-aprova, então a
+// raia com chave também precisa de --tools e dontAsk para Bash/Edit/Write não
+// poderem vir de configurações locais. Revisar requisito, diff, histórico,
+// MEMORY.md, plano e docs/test-change-log.md antes de alterá-las (AGENTS.md).
+// A opção de sessão disableAllHooks fecha a execução automática de comandos
+// do projeto, que --tools não bloqueia; a precedência oficial do --settings
+// impede settings.json/settings.local.json de reativá-los com false.
+test("a raia com chave restringe as ferramentas disponíveis a Read, Glob e Grep", () => {
+  const args = buildClaudeCliArgs(provider, "faça isso", "glm-5.2");
   assert.deepEqual(args, [
     "-p",
     "faça isso",
@@ -38,8 +45,12 @@ test("monta os argumentos na ordem da receita, com a tarefa logo após -p", () =
     "Read",
     "Glob",
     "Grep",
-    "Bash(npm test:*)",
-    "Bash(npm run build:*)",
+    "--tools",
+    "Read,Glob,Grep",
+    "--permission-mode",
+    "dontAsk",
+    "--settings",
+    '{"disableAllHooks":true}',
     "--mcp-config",
     '{"mcpServers":{}}',
     "--strict-mcp-config",
@@ -53,31 +64,31 @@ test("monta os argumentos na ordem da receita, com a tarefa logo após -p", () =
 });
 
 test("sem esforço escolhido, --effort nem aparece (vale o padrão do próprio CLI)", () => {
-  const args = buildClaudeCliArgs("faça isso", "claude-sonnet-5");
+  const args = buildClaudeCliArgs(provider, "faça isso", "claude-sonnet-5");
   assert.ok(!args.includes("--effort"), "não pode mandar --effort sem esforço escolhido");
 });
 
 test("com esforço escolhido, os argumentos ganham --effort com o nível pedido", () => {
-  const args = buildClaudeCliArgs("faça isso", "claude-sonnet-5", "xhigh");
+  const args = buildClaudeCliArgs(provider, "faça isso", "claude-sonnet-5", "xhigh");
   const i = args.indexOf("--effort");
   assert.ok(i > 0, "o --effort tem que estar nos argumentos");
   assert.equal(args[i + 1], "xhigh", "o nível vem logo depois do --effort");
   // O resto da receita continua igual: só o par --effort <nível> entrou.
   assert.deepEqual(
     args.filter((a, k) => k !== i && k !== i + 1),
-    buildClaudeCliArgs("faça isso", "claude-sonnet-5")
+    buildClaudeCliArgs(provider, "faça isso", "claude-sonnet-5")
   );
 });
 
 test("as ferramentas liberadas são só leitura+verificação: nunca Edit nem Write", () => {
-  const args = buildClaudeCliArgs("t", "glm-5.2");
+  const args = buildClaudeCliArgs(provider, "t", "glm-5.2");
   assert.ok(!args.includes("Edit"), "não pode liberar Edit nesta raia");
   assert.ok(!args.includes("Write"), "não pode liberar Write nesta raia");
   assert.ok(args.includes("Read"), "precisa liberar Read");
 });
 
 test("usa MCP vazio em modo estrito e saída em stream de eventos", () => {
-  const args = buildClaudeCliArgs("t", "glm-5.2");
+  const args = buildClaudeCliArgs(provider, "t", "glm-5.2");
   assert.ok(args.includes("--strict-mcp-config"));
   const i = args.indexOf("--mcp-config");
   assert.equal(args[i + 1], '{"mcpServers":{}}');
@@ -86,7 +97,7 @@ test("usa MCP vazio em modo estrito e saída em stream de eventos", () => {
 });
 
 test("pede os pedacinhos ao vivo e o --verbose que o CLI exige junto do stream", () => {
-  const args = buildClaudeCliArgs("t", "glm-5.2");
+  const args = buildClaudeCliArgs(provider, "t", "glm-5.2");
   assert.ok(args.includes("--include-partial-messages"), "sem isto não há texto ao vivo pro parcial");
   // Medido em 2026-08-01: sem --verbose o CLI recusa na hora, com
   // "When using --print, --output-format=stream-json requires --verbose".
@@ -94,14 +105,18 @@ test("pede os pedacinhos ao vivo e o --verbose que o CLI exige junto do stream",
 });
 
 test("a tarefa é passada por -p (é o argumento logo depois de -p)", () => {
-  const args = buildClaudeCliArgs("tarefa longa", "glm-5.2");
+  const args = buildClaudeCliArgs(provider, "tarefa longa", "glm-5.2");
   assert.equal(args[0], "-p");
   assert.equal(args[1], "tarefa longa");
 });
 
+// O workdir existente usado nestes testes é apenas o preparo necessário para
+// alcançar as validações de chave/modelo; a exigência e o cwd do Claude têm
+// cobertura própria. Revisar requisito, diff, commits de introdução/subsequentes,
+// cobertura substituta, MEMORY.md, plano e docs/test-change-log.md antes de mudar.
 test("sem a chave no .env dá erro amigável apontando a variável, antes de qualquer spawn", async () => {
   delete process.env.ZAI_API_KEY_TESTE_INEXISTENTE;
-  await assert.rejects(runClaudeCli(config, provider, "tarefa", undefined, "glm-5.2"), (err: Error) => {
+  await assert.rejects(runClaudeCli(config, provider, "tarefa", ".", "glm-5.2"), (err: Error) => {
     assert.match(err.message, /Falta a chave/);
     assert.match(err.message, /ZAI_API_KEY_TESTE_INEXISTENTE/);
     return true;
@@ -110,7 +125,7 @@ test("sem a chave no .env dá erro amigável apontando a variável, antes de qua
 
 test("chave presente porém vazia conta como chave faltando", async () => {
   process.env.ZAI_API_KEY_TESTE_INEXISTENTE = "";
-  await assert.rejects(runClaudeCli(config, provider, "tarefa", undefined, "glm-5.2"), (err: Error) => {
+  await assert.rejects(runClaudeCli(config, provider, "tarefa", ".", "glm-5.2"), (err: Error) => {
     assert.match(err.message, /Falta a chave/);
     return true;
   });
@@ -133,7 +148,7 @@ test("workdir inexistente é rejeitado antes do spawn, culpando a pasta (não o 
 
 test("sem modelo explícito dá erro amigável (a receita exige --model)", async () => {
   process.env.ZAI_API_KEY_TESTE_INEXISTENTE = "chave-de-mentira";
-  await assert.rejects(runClaudeCli(config, provider, "tarefa", undefined, undefined), (err: Error) => {
+  await assert.rejects(runClaudeCli(config, provider, "tarefa", ".", undefined), (err: Error) => {
     assert.match(err.message, /modelo explícito/);
     return true;
   });
@@ -145,6 +160,7 @@ test("sem modelo explícito dá erro amigável (a receita exige --model)", async
 type HandlerDelegate = (args: {
   model: string;
   task: string;
+  workdir?: string;
   effort?: string;
   wait?: boolean;
 }) => Promise<{ isError?: boolean; content: Array<{ text: string }> }>;
@@ -162,7 +178,7 @@ function handlerDoDelegate(config: ModelsConfig): HandlerDelegate {
   } as unknown as McpServer;
   registerDelegate(fakeServer, () => config);
   assert.ok(handler, "o delegate_task deve ter sido registrado");
-  return handler!;
+  return async (args) => handler!({ ...args, workdir: args.workdir ?? "." });
 }
 
 // Raia "com mãos" SEM effortOptions: a recusa de sempre continua valendo.
@@ -276,7 +292,7 @@ test("a raia de assinatura não cobra chave (o erro que sobra é o da pasta, nã
 
 test("a raia de assinatura continua exigindo modelo explícito", async () => {
   await assert.rejects(
-    runClaudeCli(configAssinatura, assinatura, "tarefa", undefined, undefined),
+    runClaudeCli(configAssinatura, assinatura, "tarefa", ".", undefined),
     (err: Error) => {
       assert.match(err.message, /modelo explícito/);
       return true;
@@ -284,93 +300,49 @@ test("a raia de assinatura continua exigindo modelo explícito", async () => {
   );
 });
 
-test("as mãos da raia de assinatura são exatamente as mesmas das outras raias", () => {
-  const daAssinatura = buildClaudeCliArgs("t", "claude-opus-5");
-  const doFabricante = buildClaudeCliArgs("t", "glm-5.2");
-  // Só o nome do modelo muda; o resto (ferramentas, MCP vazio, JSON) é igual.
-  assert.deepEqual(
-    daAssinatura.filter((a) => a !== "claude-opus-5"),
-    doFabricante.filter((a) => a !== "glm-5.2")
-  );
+// A supressão de hooks é exclusiva da raia com chave; este controle evita
+// alterar as automações da assinatura. Antes de modificar/remover, revisar
+// requisito, diff, histórico completo, memória, plano e docs/test-change-log.md.
+test("a assinatura conserva as ferramentas de verificação, enquanto a chave fica só na leitura", () => {
+  const daAssinatura = buildClaudeCliArgs(assinatura, "t", "claude-opus-5");
+  const doFabricante = buildClaudeCliArgs(provider, "t", "glm-5.2");
+  assert.ok(daAssinatura.includes("Read"));
+  assert.ok(daAssinatura.includes("Glob"));
+  assert.ok(daAssinatura.includes("Grep"));
+  assert.ok(daAssinatura.includes("Bash(npm test:*)"));
+  assert.ok(daAssinatura.includes("Bash(npm run build:*)"));
+  assert.ok(doFabricante.includes("Read"));
+  assert.ok(doFabricante.includes("Glob"));
+  assert.ok(doFabricante.includes("Grep"));
+  assert.ok(!doFabricante.includes("Bash(npm test:*)"));
+  assert.ok(!doFabricante.includes("Bash(npm run build:*)"));
+  assert.ok(!daAssinatura.includes("--tools"), "a receita da assinatura precisa permanecer inalterada");
+  assert.ok(!daAssinatura.includes("dontAsk"), "a assinatura preserva seu modo de permissões atual");
+  assert.ok(!daAssinatura.includes("--settings"), "a assinatura preserva suas configurações e hooks");
+  assert.equal(doFabricante[doFabricante.indexOf("--tools") + 1], "Read,Glob,Grep");
+  assert.equal(doFabricante[doFabricante.indexOf("--permission-mode") + 1], "dontAsk");
   assert.ok(!daAssinatura.includes("Edit"), "não pode liberar Edit nesta raia");
   assert.ok(!daAssinatura.includes("Write"), "não pode liberar Write nesta raia");
 });
 
-// --- Ambiente do processo filho (a trava de segurança da assinatura) ---
-
-// Guarda e devolve as variáveis que os testes de ambiente mexem, pra um teste
-// não sujar o outro.
-function comAmbienteSujo(fn: () => void): void {
-  const antes = {
-    ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
-    ANTHROPIC_AUTH_TOKEN: process.env.ANTHROPIC_AUTH_TOKEN,
-    ANTHROPIC_BASE_URL: process.env.ANTHROPIC_BASE_URL,
-  };
-  process.env.ANTHROPIC_API_KEY = "chave-herdada-que-cobraria-por-api";
-  process.env.ANTHROPIC_AUTH_TOKEN = "token-herdado";
-  process.env.ANTHROPIC_BASE_URL = "https://endereco-herdado.example";
-  try {
-    fn();
-  } finally {
-    for (const [nome, valor] of Object.entries(antes)) {
-      if (valor === undefined) delete process.env[nome];
-      else process.env[nome] = valor;
-    }
-  }
-}
-
-test("assinatura: as variáveis ANTHROPIC herdadas são removidas do ambiente do filho", () => {
-  comAmbienteSujo(() => {
-    const env = montarAmbiente(assinatura, undefined, undefined, 60_000);
-    // Não basta estar vazio: a variável não pode existir, senão o Claude Code
-    // trocaria a assinatura por cobrança na API sem avisar.
-    assert.ok(!("ANTHROPIC_API_KEY" in env), "ANTHROPIC_API_KEY tem que sumir");
-    assert.ok(!("ANTHROPIC_AUTH_TOKEN" in env), "ANTHROPIC_AUTH_TOKEN tem que sumir");
-    assert.ok(!("ANTHROPIC_BASE_URL" in env), "ANTHROPIC_BASE_URL tem que sumir");
-  });
-});
-
-test("assinatura: nenhuma variável do filho fica com o texto 'undefined'", () => {
-  comAmbienteSujo(() => {
-    const env = montarAmbiente(assinatura, undefined, undefined, 60_000);
-    for (const [nome, valor] of Object.entries(env)) {
-      assert.notEqual(valor, "undefined", `${nome} virou o texto "undefined"`);
-    }
-  });
-});
-
-test("assinatura: não define CLAUDE_CONFIG_DIR (pasta descartável dá 'Not logged in')", () => {
-  const env = montarAmbiente(assinatura, undefined, "/tmp/pasta-descartavel", 60_000);
-  assert.ok(!("CLAUDE_CONFIG_DIR" in env), "a raia de assinatura precisa do login real");
-});
-
-test("assinatura: o filho continua herdando o básico do sistema (PATH)", () => {
-  const env = montarAmbiente(assinatura, undefined, undefined, 60_000);
-  assert.equal(env.PATH, process.env.PATH);
-});
-
-test("raia de fabricante: define endereço, chave e pasta descartável", () => {
-  const env = montarAmbiente(provider, "chave-de-mentira", "/tmp/pasta-descartavel", 60_000);
-  assert.equal(env.ANTHROPIC_BASE_URL, "https://api.z.ai/api/anthropic");
-  assert.equal(env.ANTHROPIC_AUTH_TOKEN, "chave-de-mentira");
-  assert.equal(env.ANTHROPIC_API_KEY, "chave-de-mentira");
-  assert.equal(env.CLAUDE_CONFIG_DIR, "/tmp/pasta-descartavel");
-});
-
-test("raia de fabricante: o endereço herdado do ambiente é sobrescrito pelo do cardápio", () => {
-  comAmbienteSujo(() => {
-    const env = montarAmbiente(provider, "chave-de-mentira", "/tmp/x", 60_000);
-    assert.equal(env.ANTHROPIC_BASE_URL, "https://api.z.ai/api/anthropic");
-    assert.equal(env.ANTHROPIC_API_KEY, "chave-de-mentira");
-  });
-});
-
-test("as duas raias dão ao Claude Code 1 minuto a mais que o nosso prazo", () => {
-  const env = montarAmbiente(assinatura, undefined, undefined, 5 * 60_000);
-  assert.equal(env.API_TIMEOUT_MS, String(6 * 60_000));
-  const envFabricante = montarAmbiente(provider, "k", "/tmp/x", 5 * 60_000);
-  assert.equal(envFabricante.API_TIMEOUT_MS, String(6 * 60_000));
-});
+// Removed tests and their Task 2 replacements in ambiente-filho.test.ts:
+// - "assinatura: as variáveis ANTHROPIC herdadas são removidas do ambiente do filho"
+//   -> "Claude por assinatura preserva o login em HOME e somente seu prazo".
+// - "assinatura: nenhuma variável do filho fica com o texto 'undefined'"
+//   -> "ambientes filhos nunca serializam valor ausente como texto undefined".
+// - "assinatura: não define CLAUDE_CONFIG_DIR (pasta descartável dá 'Not logged in')"
+//   -> "Claude por assinatura preserva o login em HOME e somente seu prazo".
+// - "assinatura: o filho continua herdando o básico do sistema (PATH)"
+//   -> "ambiente base mantém só o sistema permitido e exclui segredos de outros provedores".
+// - "raia de fabricante: define endereço, chave e pasta descartável"
+//   -> "Claude com chave adiciona somente a rota e credencial selecionadas".
+// - "raia de fabricante: o endereço herdado do ambiente é sobrescrito pelo do cardápio"
+//   -> "Claude com chave adiciona somente a rota e credencial selecionadas".
+// - "as duas raias dão ao Claude Code 1 minuto a mais que o nosso prazo"
+//   -> "Claude por assinatura preserva o login em HOME e somente seu prazo" and
+//      "Claude com chave adiciona somente a rota e credencial selecionadas".
+// Reason: Task 2 consolidates narrow Claude-only assertions into the approved
+// all-CLI environment allowlist coverage; do not weaken it without AGENTS.md review.
 
 test("o cardápio real traz a raia claude-maos sem endereço e sem chave", async () => {
   const { loadConfig } = await import("../config.js");

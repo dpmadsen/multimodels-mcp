@@ -7,6 +7,7 @@ import {
   parseChatResponse,
   chatCompletion,
   DEFAULT_MAX_TOKENS,
+  lerCorpoLimitado,
 } from "./openai-compat.js";
 import type { ModelsConfig, OpenAICompatProvider } from "../config.js";
 
@@ -125,6 +126,11 @@ test("falha de conexão na instância local sugere ligar o servidor do LM Studio
   await assert.rejects(chatCompletion(config, provider, "m", "oi"), /lms server start/);
 });
 
+// Este grupo protege a renomeação maxTokens -> maxOutputTokens sem mudar o
+// contrato wire max_tokens: é só uma dica de saída ao provedor, distinta do
+// contextTokens informativo e do maxResponseBytes imposto localmente. Revisar
+// requisito, diff, histórico completo, MEMORY.md, plano e docs/test-change-log.md
+// antes de alterar ou remover estas asserções (AGENTS.md).
 test("a requisição envia max_tokens (padrão e configurado)", async () => {
   const originalFetch = globalThis.fetch;
   const bodies: Array<Record<string, unknown>> = [];
@@ -147,11 +153,133 @@ test("a requisição envia max_tokens (padrão e configurado)", async () => {
     await chatCompletion(config, provider, "m", "oi");
     assert.equal(bodies[0].max_tokens, DEFAULT_MAX_TOKENS);
 
-    await chatCompletion(config, { ...provider, maxTokens: 8000 }, "m", "oi");
+    await chatCompletion(config, { ...provider, maxOutputTokens: 8000 }, "m", "oi");
     assert.equal(bodies[1].max_tokens, 8000);
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+// Protege a fronteira HTTP: redirects nao podem trocar o destino e respostas
+// nunca podem ser acumuladas alem do teto. Antes de alterar/remover, conferir
+// requisito, diff, historico, MEMORY.md, plano e docs/test-change-log.md.
+test("le corpo exatamente no limite e preserva UTF-8 partido entre chunks", async () => {
+  const bytes = new TextEncoder().encode("€");
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(bytes.slice(0, 1));
+      controller.enqueue(bytes.slice(1));
+      controller.close();
+    },
+  });
+  assert.equal(await lerCorpoLimitado(new Response(body), 3), "€");
+});
+
+test("cancela stream quando o corpo passa um byte do limite", async () => {
+  let cancelado = false;
+  const body = new ReadableStream<Uint8Array>({
+    start(controller) { controller.enqueue(new TextEncoder().encode("abcde")); },
+    cancel() { cancelado = true; },
+  });
+  await assert.rejects(lerCorpoLimitado(new Response(body), 4), /excedeu o limite local de 4 bytes/);
+  assert.equal(cancelado, true);
+});
+
+test("completion usa redirect manual", async () => {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (_url: unknown, init?: RequestInit) => {
+    assert.equal(init?.redirect, "manual");
+    return new Response(JSON.stringify({ choices: [{ message: { content: "ok" } }] }));
+  }) as typeof fetch;
+  try {
+    const provider: OpenAICompatProvider = { type: "openai-compat", label: "Fake", baseUrl: "http://localhost/v1", enabled: true, models: ["m"] };
+    assert.equal((await chatCompletion(config, provider, "m", "oi")).text, "ok");
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test("redirects 302 e 307 falham sem repescagem nem Location", async () => {
+  const originalFetch = globalThis.fetch;
+  try {
+    for (const status of [302, 307]) {
+      let chamadas = 0;
+      globalThis.fetch = (async () => {
+        chamadas++;
+        return new Response("", { status, headers: { Location: "https://private.example/?token=secret" } });
+      }) as typeof fetch;
+      const provider: OpenAICompatProvider = { type: "openai-compat", label: "Fake", baseUrl: "http://localhost/v1", enabled: true, models: ["m"] };
+      await assert.rejects(chatCompletion(config, provider, "m", "oi"), (err: Error) => {
+        assert.match(err.message, new RegExp(String(status)));
+        assert.ok(!err.message.includes("private.example"));
+        return true;
+      });
+      assert.equal(chamadas, 1);
+    }
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+test("corpos grandes de sucesso ou erro falham sem repescagem", async () => {
+  const originalFetch = globalThis.fetch;
+  try {
+    for (const status of [200, 500]) {
+      let chamadas = 0;
+      globalThis.fetch = (async () => {
+        chamadas++;
+        return new Response("abcde", { status });
+      }) as typeof fetch;
+      const provider: OpenAICompatProvider = { type: "openai-compat", label: "Fake", baseUrl: "http://localhost/v1", enabled: true, models: ["m"], maxResponseBytes: 4 };
+      await assert.rejects(chatCompletion(config, provider, "m", "oi"), /excedeu o limite local/);
+      assert.equal(chamadas, 1);
+    }
+  } finally { globalThis.fetch = originalFetch; }
+});
+
+// A segunda tentativa tambem e uma fronteira: registrar a rejeicao tipada sem
+// expor corpo/Location. Antes de alterar/remover, conferir requisito, diff,
+// historico, MEMORY.md, plano e docs/test-change-log.md.
+test("retry seguida de redirect registra reject antes do finish, sem terceira tentativa", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalError = console.error;
+  const linhas: string[] = [];
+  let chamadas = 0;
+  globalThis.fetch = (async () => {
+    chamadas++;
+    return chamadas === 1
+      ? new Response("instabilidade", { status: 500 })
+      : new Response("", { status: 302, headers: { Location: "https://nao-vazar.test/?secret=1" } });
+  }) as typeof fetch;
+  console.error = (linha?: unknown) => linhas.push(String(linha));
+  try {
+    const provider: OpenAICompatProvider = { type: "openai-compat", label: "Fake", baseUrl: "http://localhost/v1", enabled: true, models: ["m"] };
+    await assert.rejects(chatCompletion(config, provider, "m", "oi"), /302/);
+  } finally { globalThis.fetch = originalFetch; console.error = originalError; }
+  const eventos = linhas.filter((linha) => linha.startsWith("{")).map((linha) => JSON.parse(linha) as { event: string; reason?: string; status?: number });
+  assert.deepEqual(eventos.map((evento) => evento.event), ["provider.start", "provider.retry", "provider.reject", "provider.finish"]);
+  assert.equal(eventos[2].reason, "redirect");
+  assert.equal(eventos[2].status, 302);
+  assert.equal(chamadas, 2);
+  assert.ok(linhas.every((linha) => !linha.includes("nao-vazar.test")));
+});
+
+test("retry seguida de corpo grande registra reject de bytes sem terceira tentativa", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalError = console.error;
+  const linhas: string[] = [];
+  let chamadas = 0;
+  globalThis.fetch = (async () => {
+    chamadas++;
+    return chamadas === 1 ? new Response("instabilidade", { status: 500 }) : new Response("abc".repeat(100));
+  }) as typeof fetch;
+  console.error = (linha?: unknown) => linhas.push(String(linha));
+  try {
+    const provider: OpenAICompatProvider = { type: "openai-compat", label: "Fake", baseUrl: "http://localhost/v1", enabled: true, models: ["m"], maxResponseBytes: 20 };
+    await assert.rejects(chatCompletion(config, provider, "m", "oi"), /excedeu o limite local/);
+  } finally { globalThis.fetch = originalFetch; console.error = originalError; }
+  const eventos = linhas.filter((linha) => linha.startsWith("{")).map((linha) => JSON.parse(linha) as { event: string; reason?: string; observedBytes?: number; limitBytes?: number });
+  assert.deepEqual(eventos.map((evento) => evento.event), ["provider.start", "provider.retry", "provider.reject", "provider.finish"]);
+  assert.equal(eventos[2].reason, "response_bytes");
+  assert.equal(eventos[2].observedBytes, 300);
+  assert.equal(eventos[2].limitBytes, 20);
+  assert.equal(chamadas, 2);
 });
 
 // --- Esforço de raciocínio nos provedores openai-compat ---
@@ -427,6 +555,25 @@ test("erro 500 repesca: 1º falha, 2º dá certo (retried: true)", async () => {
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+// Este caso protege a repescagem histórica de 429 após o endurecimento de
+// redirects/limites: deve haver exatamente uma segunda tentativa, sem ampliar a
+// política. Revisar requisito, diff, commits de retry posteriores, MEMORY.md,
+// plano e docs/test-change-log.md antes de alterar/remover (AGENTS.md).
+test("erro 429 preserva uma unica repescagem", async () => {
+  const originalFetch = globalThis.fetch;
+  let chamadas = 0;
+  globalThis.fetch = (async () => {
+    chamadas++;
+    if (chamadas === 1) return new Response("aguarde", { status: 429 });
+    return new Response(JSON.stringify({ choices: [{ message: { content: "ok" } }] }));
+  }) as typeof fetch;
+  try {
+    const provider: OpenAICompatProvider = { type: "openai-compat", label: "Fake", baseUrl: "http://localhost/v1", enabled: true, models: ["m"] };
+    assert.equal((await chatCompletion(config, provider, "m", "oi")).retried, true);
+    assert.equal(chamadas, 2);
+  } finally { globalThis.fetch = originalFetch; }
 });
 
 test("se as duas tentativas falharem, o erro final avisa que houve 2 tentativas", async () => {

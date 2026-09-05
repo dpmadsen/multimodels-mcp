@@ -1,7 +1,7 @@
 // Raias "com mãos": rodam o próprio Claude Code em modo silencioso (headless).
-// O modelo ganha mãos limitadas — pode LER o projeto, procurar e rodar
-// `npm test`/`npm run build`, mas NÃO pode editar arquivos (sem Edit/Write nas
-// ferramentas liberadas). Um motor só atende as duas configurações:
+// O modelo ganha mãos limitadas: a assinatura pode LER/procurar e rodar
+// `npm test`/`npm run build`; raias com chave podem somente Read/Glob/Grep.
+// Nenhuma delas pode editar arquivos. Um motor só atende as duas configurações:
 //   • com baseUrl + envKey: aponta pro motor de outro fabricante (GLM, DeepSeek,
 //     Kimi), com a chave vinda do .env (nunca do código);
 //   • sem baseUrl e sem envKey: entra pela assinatura do Claude Code do Daniel,
@@ -11,7 +11,7 @@ import { existsSync } from "node:fs";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { resolveTimeoutMs, type ClaudeCliProvider, type ModelsConfig } from "../config.js";
+import { MAX_RESPONSE_BYTES_PADRAO, resolveMaxResponseBytes, resolveTimeoutMs, type ClaudeCliProvider, type ModelsConfig } from "../config.js";
 import { naFila } from "./fila.js";
 import {
   ESTADO_INICIAL,
@@ -24,6 +24,8 @@ import {
   type ProgressoDoStream,
 } from "./claude-stream.js";
 import { ErroComParcial } from "./erro-parcial.js";
+import { montarAmbienteClaude } from "./ambiente-filho.js";
+import { ErroLimiteDeSaida, somarBytesDeSaida } from "./limite-saida.js";
 
 // Aviso de progresso pra quem chamou. O motor não sabe o que é uma "tarefa" —
 // ele só grita "estou aqui, já fiz isso" e quem ligou decide o que fazer com
@@ -38,26 +40,22 @@ const FOLGA_TIMEOUT_MS = 60 * 1000;
 // Teto de memória da saída (a delegação pode durar muitos minutos):
 // stderr guarda só um rabo rolante — usamos apenas o final no diagnóstico.
 const MAX_STDERR_CHARS = 8192;
-// stdout tem teto de 10 MB; passando disso, abortamos em vez de estourar a RAM.
-const MAX_STDOUT_CHARS = 10 * 1024 * 1024;
 
-// Ferramentas liberadas ao modelo: leitura + verificação, nunca edição.
-// Read/Glob/Grep pra ler e procurar; os dois Bash restritos só deixam rodar
-// os testes e a compilação (nada de comandos arbitrários).
-const FERRAMENTAS_LIBERADAS = [
-  "Read",
-  "Glob",
-  "Grep",
-  "Bash(npm test:*)",
-  "Bash(npm run build:*)",
-] as const;
+const FERRAMENTAS_DE_ARQUIVO = ["Read", "Glob", "Grep"] as const;
+const FERRAMENTAS_DE_VERIFICACAO = ["Bash(npm test:*)", "Bash(npm run build:*)"] as const;
 
 // Monta os argumentos passados ao `spawn("claude", args)` — função pura, sem
 // efeitos colaterais, pra ficar fácil de testar. Não inclui o próprio executável.
 // O modelo é obrigatório nesta raia (a receita exige --model explícito).
 // O esforço é opcional: sem ele NÃO mandamos --effort, e aí vale o padrão do
 // próprio programa `claude` (a gente não inventa padrão sem medir).
-export function buildClaudeCliArgs(task: string, model: string, effort?: string): string[] {
+export function buildClaudeCliArgs(
+  provider: ClaudeCliProvider,
+  task: string,
+  model: string,
+  effort?: string
+): string[] {
+  const assinatura = ehRaiaDeAssinatura(provider);
   return [
     "-p",
     task,
@@ -67,7 +65,21 @@ export function buildClaudeCliArgs(task: string, model: string, effort?: string)
     // --effort low deu 168 tokens de saída em 6s; --effort max, 1321 em 16s.
     ...(effort ? ["--effort", effort] : []),
     "--allowedTools",
-    ...FERRAMENTAS_LIBERADAS,
+    ...FERRAMENTAS_DE_ARQUIVO,
+    ...(assinatura ? FERRAMENTAS_DE_VERIFICACAO : []),
+    // --allowedTools só pré-aprova chamadas; ele não remove ferramentas. A
+    // raia com chave usa --tools para disponibilizar somente leitura e dontAsk
+    // para negar, sem prompt interativo, qualquer ação que ainda pediria aval.
+    ...(!assinatura
+      ? [
+          "--tools", FERRAMENTAS_DE_ARQUIVO.join(","),
+          "--permission-mode", "dontAsk",
+          // Hooks executam comandos fora das ferramentas do modelo. A opção de
+          // sessão prevalece sobre settings do projeto/local, inclusive false.
+          // Políticas administradas do Claude continuam tendo prioridade.
+          "--settings", '{"disableAllHooks":true}',
+        ]
+      : []),
     // Servidor MCP vazio + modo estrito: o Claude descartável não herda
     // nenhuma ferramenta externa da configuração do Daniel.
     "--mcp-config",
@@ -97,54 +109,18 @@ export function ehRaiaDeAssinatura(provider: ClaudeCliProvider): boolean {
   return !provider.baseUrl && !provider.envKey;
 }
 
-// Monta o ambiente do processo filho — função pura (só lê process.env), pra
-// dar pra provar por teste que a trava de segurança da assinatura funciona.
-export function montarAmbiente(
-  provider: ClaudeCliProvider,
-  apiKey: string | undefined,
-  configDir: string | undefined,
-  timeoutMs: number
-): NodeJS.ProcessEnv {
-  // Partimos do ambiente atual porque o filho precisa do básico (PATH, HOME).
-  const env: NodeJS.ProcessEnv = { ...process.env };
-  // Damos ao Claude Code um minuto a mais que o nosso kill, pra ele
-  // ser só a rede de segurança e nunca desistir antes de nós.
-  env.API_TIMEOUT_MS = String(timeoutMs + FOLGA_TIMEOUT_MS);
-
-  if (ehRaiaDeAssinatura(provider)) {
-    // TRAVA DE SEGURANÇA: se alguma destas três variáveis vier herdada do
-    // ambiente, o Claude Code usaria a chave de API (ou o motor de outro
-    // fabricante) em vez da assinatura — cobrando por fora, sem avisar.
-    // Apagamos as três com `delete`: no Node, atribuir undefined não some
-    // com a variável, ela chegaria ao filho com o texto "undefined".
-    delete env.ANTHROPIC_API_KEY;
-    delete env.ANTHROPIC_AUTH_TOKEN;
-    delete env.ANTHROPIC_BASE_URL;
-    // E nada de CLAUDE_CONFIG_DIR: medido em 2026-08-01, com pasta de
-    // configuração descartável o CLI responde "Not logged in · Please run
-    // /login". A assinatura só vale com a configuração real (~/.claude).
-    return env;
-  }
-
-  // Raia de outro fabricante: endereço e chave dele, em identidade descartável.
-  if (configDir) env.CLAUDE_CONFIG_DIR = configDir;
-  if (provider.baseUrl) env.ANTHROPIC_BASE_URL = provider.baseUrl;
-  if (apiKey) {
-    env.ANTHROPIC_AUTH_TOKEN = apiKey;
-    env.ANTHROPIC_API_KEY = apiKey;
-  }
-  return env;
-}
-
 export async function runClaudeCli(
   config: ModelsConfig | undefined,
   provider: ClaudeCliProvider,
   task: string,
-  workdir?: string,
+  workdir: string,
   model?: string,
   effort?: string,
   aoProgredir?: AoProgredir
 ): Promise<string> {
+  if (!workdir) {
+    throw new Error("O campo workdir é obrigatório para modelos que acessam arquivos.");
+  }
   if (!model) {
     throw new Error(`A raia "${provider.label}" exige um modelo explícito (ex.: "${provider.models[0] ?? "glm-5.2"}").`);
   }
@@ -164,12 +140,13 @@ export async function runClaudeCli(
 
   // Validamos a pasta antes do spawn: se ela não existir, o spawn falharia com
   // ENOENT e a mensagem culparia o binário `claude`, um diagnóstico errado.
-  if (workdir !== undefined && !existsSync(workdir)) {
+  if (!existsSync(workdir)) {
     throw new Error(`A pasta indicada em workdir não existe: ${workdir}`);
   }
 
   // Prazo vem sempre da cascata (provedor → padrão do arquivo → embutido).
   const timeoutMs = resolveTimeoutMs(config, provider);
+  const maxResponseBytes = resolveMaxResponseBytes(config, provider, model);
 
   // A baseUrl é única por provedor, então serve de chave da fila (a z.ai
   // engasga com chamadas ao mesmo tempo — maxConcurrent 1 no models.json).
@@ -177,7 +154,7 @@ export async function runClaudeCli(
   // também é único por raia no cardápio — e assim ela ganha a fila dela,
   // separada das outras raias.
   return naFila(provider.baseUrl ?? provider.label, provider.maxConcurrent, () =>
-    executarClaudeCli(provider, task, model, workdir, timeoutMs, apiKey, effort, aoProgredir)
+    executarClaudeCli(provider, task, model, workdir, timeoutMs, maxResponseBytes, apiKey, effort, aoProgredir)
   );
 }
 
@@ -185,8 +162,9 @@ async function executarClaudeCli(
   provider: ClaudeCliProvider,
   task: string,
   model: string,
-  workdir: string | undefined,
+  workdir: string,
   timeoutMs: number,
+  maxResponseBytes: number,
   apiKey: string | undefined,
   effort: string | undefined,
   aoProgredir: AoProgredir | undefined
@@ -201,12 +179,12 @@ async function executarClaudeCli(
     : await mkdtemp(join(tmpdir(), "multimodels-claudecli-"));
   try {
     return await new Promise<string>((resolve, reject) => {
-      const child = spawn("claude", buildClaudeCliArgs(task, model, effort), {
-        cwd: workdir ?? process.cwd(),
+      const child = spawn("claude", buildClaudeCliArgs(provider, task, model, effort), {
+        cwd: workdir,
         // stdin fechado ("ignore"): sem isso o claude poderia ficar esperando
         // entrada e a delegação travaria.
         stdio: ["ignore", "pipe", "pipe"],
-        env: montarAmbiente(provider, apiKey, configDir, timeoutMs),
+        env: montarAmbienteClaude(process.env, provider, apiKey, configDir, timeoutMs + FOLGA_TIMEOUT_MS),
       });
       // Decodificação em UTF-8 no próprio stream: sem isso, um caractere
       // multibyte (emoji, acento) partido entre dois eventos "data" viraria "�".
@@ -249,7 +227,24 @@ async function executarClaudeCli(
         );
       }, timeoutMs);
       child.stdout.on("data", (chunk: string) => {
-        tamanhoDoStdout += chunk.length;
+        if (mortoPorTamanho) return;
+        const conta = somarBytesDeSaida(tamanhoDoStdout, chunk, maxResponseBytes);
+        if (conta.excedeu) {
+          mortoPorTamanho = true;
+          clearTimeout(timer);
+          child.kill("SIGKILL");
+          const mensagem = maxResponseBytes === MAX_RESPONSE_BYTES_PADRAO
+            ? `A resposta do ${provider.label} passou de 10 MB e foi interrompida. Refaça a tarefa pedindo respostas menores.`
+            : new ErroLimiteDeSaida(conta.total, maxResponseBytes).message;
+          const erro = erroComOParcial(mensagem) as ErroComParcial & { observedBytes?: number; limitBytes?: number };
+          erro.observedBytes = conta.total;
+          erro.limitBytes = maxResponseBytes;
+          reject(
+            erro
+          );
+          return;
+        }
+        tamanhoDoStdout = conta.total;
         rabaoDoStdout = (rabaoDoStdout + chunk).slice(-500);
         const passo = consumirPedaco(estado, sobra, chunk);
         const antes = estado;
@@ -264,16 +259,6 @@ async function executarClaudeCli(
             // Quem ouve o progresso NUNCA pode derrubar a delegação: um erro
             // ao anotar o andamento não vale perder a resposta inteira.
           }
-        }
-        if (tamanhoDoStdout > MAX_STDOUT_CHARS) {
-          mortoPorTamanho = true;
-          clearTimeout(timer);
-          child.kill("SIGKILL");
-          reject(
-            erroComOParcial(
-              `A resposta do ${provider.label} passou de 10 MB e foi interrompida. Refaça a tarefa pedindo respostas menores.`
-            )
-          );
         }
       });
       child.stderr.on("data", (chunk: string) => {

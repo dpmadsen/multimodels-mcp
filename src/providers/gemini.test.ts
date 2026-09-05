@@ -1,6 +1,9 @@
 // Testes da montagem de argumentos do Antigravity CLI (agy), a ponte do Gemini.
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { chmod, mkdtemp, realpath, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { buildGeminiArgs, runGemini } from "./gemini.js";
 import type { ModelsConfig } from "../config.js";
 
@@ -80,4 +83,83 @@ test("workdir inexistente é rejeitado antes do spawn, culpando a pasta (não o 
     assert.match(err.message, /multimodels-teste-xyz/);
     return true;
   });
+});
+
+// Este grupo protege a fronteira direta do provider e o cwd efetivamente
+// entregue ao processo; é necessário porque um agy instalado fora do PATH
+// poderia escapar do dublê. Antes de alterar/remover, conferir requisito,
+// diff, histórico completo, MEMORY.md, plano e docs/test-change-log.md.
+test("recusa workdir ausente antes de iniciar o agy", async () => {
+  await assert.rejects(runGemini(config, undefined, "t", undefined as never), /workdir.*obrigatório/i);
+});
+
+test("passa o workdir explícito ao processo agy", async () => {
+  const bin = await mkdtemp(join(tmpdir(), "multimodels-agy-bin-"));
+  const workdir = await mkdtemp(join(tmpdir(), "multimodels-agy-scope-"));
+  const fake = join(bin, "agy");
+  await writeFile(fake, '#!/bin/sh\nprintf "%s" "$PWD"\n', "utf8");
+  await chmod(fake, 0o755);
+  const oldPath = process.env.PATH;
+  const oldHome = process.env.HOME;
+  process.env.PATH = `${bin}:${oldPath ?? ""}`;
+  process.env.HOME = await mkdtemp(join(tmpdir(), "multimodels-agy-home-"));
+  try {
+    assert.equal(await runGemini(config, undefined, "t", workdir), await realpath(workdir));
+  } finally {
+    if (oldPath === undefined) delete process.env.PATH;
+    else process.env.PATH = oldPath;
+    if (oldHome === undefined) delete process.env.HOME;
+    else process.env.HOME = oldHome;
+  }
+});
+
+// Protege a aplicacao real do helper de bytes pelo stream do Gemini, sem rodar
+// agy/modelo real. Antes de alterar/remover, conferir requisito, diff,
+// historico, MEMORY.md, plano e docs/test-change-log.md.
+test("Gemini encerra stdout que ultrapassa o limite resolvido", async () => {
+  const bin = await mkdtemp(join(tmpdir(), "multimodels-agy-limit-bin-"));
+  const workdir = await mkdtemp(join(tmpdir(), "multimodels-agy-limit-workdir-"));
+  const fake = join(bin, "agy");
+  await writeFile(fake, "#!/bin/sh\nprintf abcde\n", "utf8");
+  await chmod(fake, 0o755);
+  const oldPath = process.env.PATH;
+  const oldHome = process.env.HOME;
+  process.env.PATH = `${bin}:${oldPath ?? ""}`;
+  process.env.HOME = await mkdtemp(join(tmpdir(), "multimodels-agy-limit-home-"));
+  try {
+    const provider = { type: "gemini-cli", label: "Gemini", enabled: true, maxResponseBytes: 4 } as const;
+    await assert.rejects(runGemini(config, provider, "t", workdir), /excedeu o limite local de 4 bytes/);
+  } finally {
+    if (oldPath === undefined) delete process.env.PATH;
+    else process.env.PATH = oldPath;
+    if (oldHome === undefined) delete process.env.HOME;
+    else process.env.HOME = oldHome;
+  }
+});
+
+// O handler deve abortar antes de acrescentar o chunk excedente a stdout. O
+// dublê não chama agy/modelo real; antes de alterar/remover, conferir requisito,
+// diff, historico, MEMORY.md, plano e docs/test-change-log.md.
+test("Gemini rejeita um unico chunk acima do limite sem expor seu texto", async () => {
+  const bin = await mkdtemp(join(tmpdir(), "multimodels-agy-chunk-bin-"));
+  const workdir = await mkdtemp(join(tmpdir(), "multimodels-agy-chunk-workdir-"));
+  const fake = join(bin, "agy");
+  await writeFile(fake, "#!/bin/sh\nprintf DADO_EXCEDENTE_NAO_RETER_DADO_EXCEDENTE_NAO_RETER\n", "utf8");
+  await chmod(fake, 0o755);
+  const oldPath = process.env.PATH;
+  const oldHome = process.env.HOME;
+  process.env.PATH = `${bin}:${oldPath ?? ""}`;
+  process.env.HOME = await mkdtemp(join(tmpdir(), "multimodels-agy-chunk-home-"));
+  try {
+    const provider = { type: "gemini-cli", label: "Gemini", enabled: true, maxResponseBytes: 4 } as const;
+    await assert.rejects(runGemini(config, provider, "t", workdir), (err: Error) => {
+      assert.ok(!err.message.includes("DADO_EXCEDENTE_NAO_RETER"));
+      return true;
+    });
+  } finally {
+    if (oldPath === undefined) delete process.env.PATH;
+    else process.env.PATH = oldPath;
+    if (oldHome === undefined) delete process.env.HOME;
+    else process.env.HOME = oldHome;
+  }
 });

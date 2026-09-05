@@ -18,6 +18,7 @@ import {
 } from "./deposito.js";
 import { erroComParcial } from "../providers/erro-parcial.js";
 import { criarLimitador } from "./limitador.js";
+import { registrarEvento } from "../observabilidade.js";
 
 // Intervalo mínimo entre duas gravações de andamento. Três segundos: rápido o
 // bastante pra quem consulta ver notícia fresca, devagar o bastante pra um
@@ -67,12 +68,14 @@ function acompanhar(pedido: PedidoEmSegundoPlano, id: string): Promise<void> {
       // tarefa que já terminou).
       await limitador.finalizar();
       await marcarPronta(pedido.pasta, id, texto);
+      registrarEvento({ event: "task.finished", taskId: id, modelId: pedido.modelo, outcome: "success" });
     } catch (err) {
       try {
         await limitador.finalizar();
         // Se o motor morreu mas trouxe o que já tinha escrito, guardamos junto
         // do erro. É o que faz vinte minutos de trabalho não virarem zero.
         await marcarErro(pedido.pasta, id, mensagemDeErro(err), new Date(), erroComParcial(err)?.parcial);
+        registrarEvento({ event: "task.finished", taskId: id, modelId: pedido.modelo, outcome: "error" });
       } catch (falhaAoGravar) {
         // Última barreira: nem gravar deu certo. Não dá pra fazer mais nada
         // além de registrar — e, principalmente, não deixar o erro escapar.
@@ -92,6 +95,7 @@ export async function dispararEmSegundoPlano(pedido: PedidoEmSegundoPlano): Prom
     task: pedido.task,
     prazoMs: pedido.prazoMs,
   });
+  registrarEvento({ event: "task.created", taskId: tarefa.id, modelId: pedido.modelo });
   // Sem await de propósito: é isso que devolve a sessão pro Daniel na hora.
   const concluida = acompanhar(pedido, tarefa.id);
   return { tarefa, concluida };
