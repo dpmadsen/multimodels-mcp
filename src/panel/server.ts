@@ -13,10 +13,13 @@ import { applyConfigUpdate, saveConfig } from "./config-write.js";
 import { fetchOpenRouterCatalog, fetchLmStudioModels, resolveLmStudioProvider } from "./catalog.js";
 import { cacheHeaderFor } from "./cache-headers.js";
 import { stateSnapshot, envKeyPertenceAAlgumProvedor } from "./provider-view.js";
+import { registrarEvento } from "../observabilidade.js";
+import { validarMutacaoDoPainel } from "./mutation-guard.js";
 
 const HOST = "127.0.0.1";
 // Porta padrão 4747; MULTIMODELS_PANEL_PORT permite trocar (ex.: pra testes).
 const PORT = Number(process.env.MULTIMODELS_PANEL_PORT) || 4747;
+const PANEL_ORIGIN = `http://${HOST}:${PORT}`;
 const UI_DIST = join(projectRoot, "ui", "dist");
 
 const MIME: Record<string, string> = {
@@ -53,6 +56,12 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
     return;
   }
   if (req.method === "POST" && url.pathname === "/api/keys") {
+    const resultado = validarMutacaoDoPainel(req.headers, PANEL_ORIGIN);
+    if (!resultado.ok) {
+      registrarEvento({ event: "panel.reject", reason: resultado.reason });
+      sendJson(res, 403, { error: "Pedido recusado pelo painel local." });
+      return;
+    }
     const body = (await readBody(req)) as { envKey?: string; value?: string };
     if (!body.envKey || typeof body.value !== "string") {
       sendJson(res, 400, { error: "Envie envKey e value." });
@@ -69,6 +78,12 @@ async function handleApi(req: IncomingMessage, res: ServerResponse, url: URL): P
     return;
   }
   if (req.method === "POST" && url.pathname === "/api/config") {
+    const resultado = validarMutacaoDoPainel(req.headers, PANEL_ORIGIN);
+    if (!resultado.ok) {
+      registrarEvento({ event: "panel.reject", reason: resultado.reason });
+      sendJson(res, 403, { error: "Pedido recusado pelo painel local." });
+      return;
+    }
     const body = await readBody(req);
     const next = applyConfigUpdate(loadConfig(), body);
     saveConfig(projectRoot, next);

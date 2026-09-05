@@ -1,5 +1,14 @@
 # Diário do projeto — multimodels-mcp
 
+## Segurança — controles verificados (2026-09-04)
+
+- Claude com chave agora recebe uma ordem explícita para desligar as ações automáticas do projeto, que podiam executar comandos mesmo sem a ferramenta de terminal. A assinatura mantém o comportamento anterior; regras impostas por um administrador ainda têm prioridade. O teste local confere a ordem enviada, mas o Claude real não está instalado neste ambiente.
+- Filhos de modelos recebem `workdir` explícito e ambiente mínimo; credenciais de outros provedores não atravessam a fronteira.
+- Redirecionamentos são recusados e respostas têm limite local de bytes, com fallback de 10 MiB.
+- O painel aceita mutações somente da origem/host exatos e com JSON.
+- Claude com chave agora recebe uma lista que torna somente `Read`/`Glob`/`Grep` disponíveis e recusa o resto sem pedir confirmação; a raia por assinatura mantém `npm test`/`npm run build`. Transferência de código, endpoints aprovados e histórico compartilhado entre projetos continuam permitidos.
+- A correção final adicionou o contrato visível de `workdir` e fechou a regressão em 313/313 testes; a re-revisão escopada passou, com os seis achados finais tratados e sem nova quebra Crítica/Importante. Esses resultados são evidência histórica da onda de correção.
+
 > English version: [CHANGELOG.en.md](CHANGELOG.en.md)
 
 ## 0.12.1 (2026-08-01) — O controle de esforço do Claude aparece no painel

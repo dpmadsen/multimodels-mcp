@@ -2,10 +2,12 @@
 // (assinatura do ChatGPT — sem custo de API). Roda em modo somente-leitura:
 // o Codex analisa e responde, mas não altera arquivos.
 import { spawn } from "node:child_process";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { resolveTimeoutMs, type CodexProvider, type ModelsConfig } from "../config.js";
+import { resolveMaxResponseBytes, resolveTimeoutMs, type CodexProvider, type ModelsConfig } from "../config.js";
+import { montarAmbienteCodex } from "./ambiente-filho.js";
+import { ErroLimiteDeSaida } from "./limite-saida.js";
 
 // Valores aceitos pelo CLI para "quanto o modelo deve pensar" antes de responder.
 const EFFORT_VALIDOS = ["low", "medium", "high", "xhigh"] as const;
@@ -36,12 +38,16 @@ export async function runCodex(
   config: ModelsConfig | undefined,
   provider: CodexProvider | undefined,
   task: string,
-  workdir?: string,
+  workdir: string,
   model?: string,
   effort?: string
 ): Promise<string> {
+  if (!workdir) {
+    throw new Error("O campo workdir é obrigatório para modelos que acessam arquivos.");
+  }
   // Prazo vem sempre da cascata (provedor → padrão do arquivo → embutido).
   const timeoutMs = resolveTimeoutMs(config, provider);
+  const maxResponseBytes = resolveMaxResponseBytes(config, provider ?? {}, model);
   const scratch = await mkdtemp(join(tmpdir(), "multimodels-codex-"));
   const outFile = join(scratch, "last-message.txt");
   try {
@@ -50,10 +56,11 @@ export async function runCodex(
         "codex",
         buildCodexArgs(task, { outFile, model, effort }),
         {
-          cwd: workdir ?? process.cwd(),
+          cwd: workdir,
           // stdin fechado ("ignore"): sem isso o codex fica esperando
           // entrada para sempre e a delegação trava.
           stdio: ["ignore", "ignore", "pipe"],
+          env: montarAmbienteCodex(process.env),
         }
       );
       let stderr = "";
@@ -83,6 +90,10 @@ export async function runCodex(
         }
       });
     });
+    const tamanho = (await stat(outFile)).size;
+    if (tamanho > maxResponseBytes) {
+      throw new ErroLimiteDeSaida(tamanho, maxResponseBytes);
+    }
     const message = (await readFile(outFile, "utf8")).trim();
     if (!message) {
       throw new Error("O Codex terminou sem deixar uma resposta final.");

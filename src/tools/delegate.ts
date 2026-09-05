@@ -21,6 +21,9 @@ import { dispararEmSegundoPlano, mensagemDeSenha } from "../tarefas/execucao.js"
 import { blocoDeParcial } from "../tarefas/texto-parcial.js";
 import { erroComParcial } from "../providers/erro-parcial.js";
 import { NOME_DA_FERRAMENTA_DE_TAREFAS } from "./check-task.js";
+import { resolverPastaDeTrabalho } from "../pasta-de-trabalho.js";
+import { registrarEvento } from "../observabilidade.js";
+import { ErroLimiteDeSaida } from "../providers/limite-saida.js";
 
 // Monta a delegação de verdade. Tudo que é motivo de RECUSA acontece aqui,
 // na hora da montagem — nunca dentro da promessa —, porque em segundo plano
@@ -32,6 +35,29 @@ import { NOME_DA_FERRAMENTA_DE_TAREFAS } from "./check-task.js";
 // notícia pra dar simplesmente ignoram o parâmetro.
 type Delegacao = (aoProgredir?: (sinais: SinaisDeProgresso) => void) => Promise<string>;
 
+async function executarCliComLog(ref: ModelRef, executar: () => Promise<string>): Promise<string> {
+  const providerId = ref.providerId;
+  const modelId = ref.model ?? ref.providerId;
+  const startedAt = Date.now();
+  registrarEvento({ event: "provider.start", providerId, modelId });
+  try {
+    const text = await executar();
+    registrarEvento({ event: "provider.finish", providerId, modelId, elapsedMs: Date.now() - startedAt, outcome: "success" });
+    return text;
+  } catch (err) {
+    const limite = err instanceof ErroLimiteDeSaida
+      ? err
+      : err instanceof Error && typeof (err as { observedBytes?: unknown }).observedBytes === "number" && typeof (err as { limitBytes?: unknown }).limitBytes === "number"
+        ? err as Error & { observedBytes: number; limitBytes: number }
+        : undefined;
+    if (limite) {
+      registrarEvento({ event: "provider.reject", providerId, modelId, reason: "response_bytes", observedBytes: limite.observedBytes, limitBytes: limite.limitBytes });
+    }
+    registrarEvento({ event: "provider.finish", providerId, modelId, elapsedMs: Date.now() - startedAt, outcome: "error" });
+    throw err;
+  }
+}
+
 function montarDelegacao(
   config: ModelsConfig,
   ref: ModelRef,
@@ -40,6 +66,9 @@ function montarDelegacao(
   effort: string | undefined
 ): Delegacao {
   if (ref.provider.type === "claude-cli") {
+    if (!workdir) {
+      throw new Error("O campo workdir é obrigatório para modelos que acessam arquivos.");
+    }
     const provider = ref.provider;
     // Quem manda é a declaração no cardápio, não o nome da raia. A raia que
     // declara effortOptions aceita esforço (o programa `claude` tem --effort, e
@@ -62,15 +91,9 @@ function montarDelegacao(
     // raia. Sem nada escolhido, não mandamos --effort e vale o padrão do CLI.
     const esforcoEfetivo = resolveEffort(provider, ref.model!, effort);
     return async (aoProgredir) => {
-      const text = await runClaudeCli(
-        config,
-        provider,
-        task,
-        workdir,
-        ref.model,
-        esforcoEfetivo,
-        aoProgredir
-      );
+      const text = await executarCliComLog(ref, () => runClaudeCli(
+        config, provider, task, workdir, ref.model, esforcoEfetivo, aoProgredir
+      ));
       const detalhes = [ref.model, "com mãos", esforcoEfetivo ? `esforço: ${esforcoEfetivo}` : undefined].filter(
         Boolean
       );
@@ -79,11 +102,15 @@ function montarDelegacao(
   }
   if (ref.provider.type === "codex-cli" || ref.provider.type === "gemini-cli") {
     const provider = ref.provider;
+    if (!workdir) {
+      throw new Error("O campo workdir é obrigatório para modelos que acessam arquivos.");
+    }
     return async () => {
-      const text =
+      const text = await executarCliComLog(ref, async () =>
         provider.type === "codex-cli"
           ? await runCodex(config, provider, task, workdir, ref.model, effort)
-          : await runGemini(config, provider, task, workdir, ref.model, effort);
+          : await runGemini(config, provider, task, workdir, ref.model, effort)
+      );
       const detalhes = [ref.model, effort ? `esforço: ${effort}` : undefined].filter(Boolean);
       const footer =
         detalhes.length > 0
@@ -95,10 +122,10 @@ function montarDelegacao(
   const provider = ref.provider;
   const model = ref.model!;
   return async () => {
-    const result = await chatCompletion(config, provider, model, task, { effort });
+    const result = await chatCompletion(config, provider, model, task, { effort, providerId: ref.providerId });
     const text = result.truncated
       ? `${result.text}\n\n⚠️ Atenção: a resposta acima foi CORTADA no meio por atingir o limite de tamanho. ` +
-        `Peça uma tarefa mais curta (ou em partes), ou aumente o "maxTokens" desse provedor no config/models.json.`
+        `Peça uma tarefa mais curta (ou em partes), ou aumente o "maxOutputTokens" desse provedor no config/models.json.`
       : result.text;
     const tokens = result.usage
       ? ` · tokens: ${result.usage.prompt_tokens ?? "?"} entrada / ${result.usage.completion_tokens ?? "?"} saída`
@@ -140,8 +167,9 @@ export function registerDelegate(server: McpServer, getConfig: () => ModelsConfi
           .string()
           .optional()
           .describe(
-            "Vale para codex, gemini e glm-maos: pasta do projeto que o modelo pode LER (caminho absoluto). " +
-              "Para o gemini, requer o arquivo de permissões do agy configurado (senão, mande o contexto no texto)"
+            "Obrigatório para Codex, Gemini e toda raia CLI/com mãos: pasta do projeto que o modelo pode LER (caminho absoluto). " +
+              "Ignorado pelas raias de API direta. Para o Gemini, requer o arquivo de permissões do agy configurado " +
+              "(senão, mande o contexto no texto)"
           ),
         effort: z
           .string()
@@ -161,7 +189,7 @@ export function registerDelegate(server: McpServer, getConfig: () => ModelsConfi
               `traz o número dela, para buscar depois com ${NOME_DA_FERRAMENTA_DE_TAREFAS}`
           ),
       },
-      annotations: { readOnlyHint: true, openWorldHint: true },
+      annotations: { readOnlyHint: false, openWorldHint: true },
     },
     async ({ model, task, workdir, effort, wait }) => {
       try {
@@ -175,7 +203,11 @@ export function registerDelegate(server: McpServer, getConfig: () => ModelsConfi
         if (fabricanteAnfitriao && raiaEhDoAnfitriao(ref.provider, fabricanteAnfitriao)) {
           throw new Error(mensagemDeRecusa(ref.providerId, ref.provider.label, fabricanteAnfitriao));
         }
-        const executar = montarDelegacao(config, ref, task, workdir, effort);
+        const workdirCanonico =
+          ref.provider.type === "codex-cli" || ref.provider.type === "gemini-cli" || ref.provider.type === "claude-cli"
+            ? await resolverPastaDeTrabalho(workdir)
+            : workdir;
+        const executar = montarDelegacao(config, ref, task, workdirCanonico, effort);
         if (wait) {
           return { content: [{ type: "text", text: await executar() }] };
         }

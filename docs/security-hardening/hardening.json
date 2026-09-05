@@ -1,0 +1,45 @@
+{
+  "documentType": "codex-security.hardening-analysis",
+  "schemaVersion": "1.0",
+  "analysisId": "hardening_20260904_multimodels_security",
+  "sourceScan": {
+    "scanId": "7ae6692d-40b0-4de0-a125-ba5ad2efdc23",
+    "manifestSha256": "59ce71d8a98107707b3a3ed8f0a6a29d712376a885f4d3662616d166c3629753",
+    "targetRevision": "bbffffa",
+    "sourceDrift": "final review corrections documented after local regression"
+  },
+  "assessment": {
+    "outcome": "local_remediation_preferred",
+    "summary": "Four independent trust-boundary failures are best addressed by small local controls rather than a new security subsystem."
+  },
+  "constraints": {
+    "profile": "minimal",
+    "changeHorizons": ["incremental"],
+    "nonNegotiables": [
+      "Preserve user-approved code transfer, editing, command execution, and endpoints.",
+      "Do not add a URL allowlist, database, credential service, proxy, task namespace, or policy engine.",
+      "Use focused test-first changes and independent QA after each major milestone.",
+      "Emit troubleshooting logs without prompts, source, responses, redirect locations, or credential values.",
+      "Update documentation and the authorized Codex memory note only after verified behavior exists."
+    ],
+    "assumptions": [
+      "The product remains single-user and all projects share task history.",
+      "MCP roots are informational and cannot alone prove filesystem enforcement.",
+      "Keyed Claude tool availability is restricted by its CLI arguments; Gemini and Claude writable-mode contracts require later runtime verification."
+    ]
+  },
+  "opportunities": [],
+  "implementationPlan": "../superpowers/plans/2026-09-04-multimodels-security-hardening.md",
+  "openQuestions": [
+    "Do the installed Gemini and Claude CLIs expose native writable modes that remain confined to the approved working directory?",
+    "Does the calling Codex host apply an inherited OS sandbox to the MCP server and its child processes?"
+  ],
+  "completion": {
+    "resolvedFindings": ["credential_inheritance", "panel_cross_site_mutations", "provider_redirects", "provider_response_limits"],
+    "openRequirement": "native CLI permission confinement verification",
+    "finalReviewFindings": "implemented in bbffffa; scoped re-review passed, all six final findings addressed, no new Critical/Important breakage",
+    "verifiedCommits": ["50c6737", "36f7704", "e85c7dd", "2c9486b", "0133f9a", "bbffffa"],
+    "fullRegression": "313/313 after bbffffa as fix-wave historical evidence; controller freshly verified 313/313 at 14dd609",
+    "finalMemoryNote": "/Users/ppirooznia/.codex/memories/extensions/ad_hoc/notes/20260904T160959-0700-multimodels-security-final.md"
+  }
+}

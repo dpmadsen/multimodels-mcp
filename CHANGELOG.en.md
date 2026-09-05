@@ -1,5 +1,14 @@
 # Project diary — multimodels-mcp
 
+## Verified security controls (2026-09-04)
+
+- Keyed Claude now explicitly disables project hooks, which could execute commands even without a shell tool. Subscription behavior is unchanged; administrator-managed policy still takes precedence. Local tests verify the launch option, but the real Claude binary is unavailable in this environment.
+- File-capable children require an explicit `workdir` and receive a minimal environment; credentials from other providers do not cross the boundary.
+- Redirects are rejected and responses have a local byte limit, with a 10 MiB fallback.
+- Panel mutations require the exact origin/host and JSON content type.
+- Keyed Claude now receives an availability list that exposes only `Read`/`Glob`/`Grep` and denies everything else without prompting; the subscription lane retains `npm test`/`npm run build`. Approved code transfer, endpoints, and shared cross-project task history remain allowed.
+- The final correction added the visible `workdir` contract and closed regression at 313/313 tests; the scoped re-review passed, with all six final findings addressed and no new Critical/Important breakage. These results are historical evidence from the fix wave.
+
 > English translation of [CHANGELOG.md](CHANGELOG.md) (Portuguese original — the project is built in Portuguese, in plain non-technical language, by design).
 
 ## 0.12.1 (2026-08-01) — The Claude effort control actually shows up in the panel

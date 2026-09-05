@@ -61,6 +61,7 @@ export async function fetchLmStudioModels(
   try {
     const response = await fetch(`${provider.baseUrl}/models`, {
       signal: AbortSignal.timeout(5_000),
+      redirect: "manual",
     });
     if (!response.ok) return { available: false, models: [] };
     const data = (await response.json()) as { data?: Array<{ id: string }> };

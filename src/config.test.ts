@@ -7,6 +7,8 @@ import {
   controleDeEsforco,
   loadConfig,
   resolveEffort,
+  resolveMaxOutputTokens,
+  resolveMaxResponseBytes,
   resolveModel,
   resolveTimeoutMs,
   TIMEOUT_PADRAO_MINUTOS,
@@ -258,6 +260,46 @@ test("prazo: sem defaults no arquivo, valem os 10 minutos embutidos", () => {
   const config: ModelsConfig = { providers: {} };
   assert.equal(resolveTimeoutMs(config, provedorComPrazo(undefined)), TIMEOUT_PADRAO_MINUTOS * MINUTO);
   assert.equal(TIMEOUT_PADRAO_MINUTOS, 10);
+});
+
+// Protege a cascata de limites de saida e sua validacao fail-closed. Antes de
+// alterar/remover, conferir requisito, diff, historico, MEMORY.md, plano e
+// docs/test-change-log.md: contexto e metadado, nunca estimativa de tokens.
+test("limite de tokens usa modelo, depois provedor e por fim o padrao", () => {
+  const provider: OpenAICompatProvider = {
+    type: "openai-compat", label: "Fake", baseUrl: "http://localhost/v1", enabled: true, models: ["m"],
+    maxOutputTokens: 200, modelLimits: { m: { contextTokens: 999, maxOutputTokens: 100 } },
+  };
+  assert.equal(resolveMaxOutputTokens(provider, "m"), 100);
+  assert.equal(resolveMaxOutputTokens(provider, "other"), 200);
+  assert.equal(resolveMaxOutputTokens({ ...provider, maxOutputTokens: undefined, modelLimits: {} }, "m"), 32_000);
+  assert.equal(provider.modelLimits?.other?.contextTokens, undefined, "contexto ausente continua apenas metadado");
+});
+
+test("limite de bytes usa modelo, provedor, defaults e padrao", () => {
+  const provider: OpenAICompatProvider = {
+    type: "openai-compat", label: "Fake", baseUrl: "http://localhost/v1", enabled: true, models: ["m"],
+    maxResponseBytes: 200, modelLimits: { m: { maxResponseBytes: 100 } },
+  };
+  assert.equal(resolveMaxResponseBytes({ defaults: { maxResponseBytes: 300 }, providers: {} }, provider, "m"), 100);
+  assert.equal(resolveMaxResponseBytes({ defaults: { maxResponseBytes: 300 }, providers: {} }, provider, "other"), 200);
+  assert.equal(resolveMaxResponseBytes({ defaults: { maxResponseBytes: 300 }, providers: {} }, { ...provider, maxResponseBytes: undefined, modelLimits: {} }, "m"), 300);
+  assert.equal(resolveMaxResponseBytes({ providers: {} }, { ...provider, maxResponseBytes: undefined, modelLimits: {} }, "m"), 10 * 1024 * 1024);
+});
+
+test("limites invalidos falham fechados", () => {
+  const base: OpenAICompatProvider = { type: "openai-compat", label: "Fake", baseUrl: "http://localhost/v1", enabled: true, models: ["m"] };
+  for (const invalid of [0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1]) {
+    assert.throws(() => resolveMaxOutputTokens({ ...base, maxOutputTokens: invalid }, "m"), /inteiro positivo seguro/i);
+    assert.throws(() => resolveMaxOutputTokens({ ...base, modelLimits: { m: { maxOutputTokens: invalid } } }, "m"), /inteiro positivo seguro/i);
+    assert.throws(() => resolveMaxResponseBytes({ providers: {} }, { ...base, maxResponseBytes: invalid }, "m"), /inteiro positivo seguro/i);
+    assert.throws(() => resolveMaxResponseBytes({ defaults: { maxResponseBytes: invalid }, providers: {} }, base, "m"), /inteiro positivo seguro/i);
+  }
+});
+
+test("codex sem modelo usa o limite declarado pelo provedor", () => {
+  const provider = { type: "codex-cli", label: "Codex", enabled: true, maxOutputTokens: 123 } as const;
+  assert.equal(resolveMaxOutputTokens(provider), 123);
 });
 
 test("prazo: sem arquivo nenhum e sem provedor, ainda valem os 10 minutos embutidos", () => {
